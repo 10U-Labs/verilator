@@ -260,7 +260,7 @@ module t;
 
       cht = tagged Handle (null);
       result = 0;
-      if (cht matches tagged Handle .h)
+      if (cht matches tagged Handle .*)  // Wildcard - VCS can't bind chandle
          result = 1;
       else
          result = 2;

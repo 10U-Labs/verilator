@@ -156,12 +156,12 @@ module t;
       endcase
       `checkh(result, 256);
 
-      // Test 9: Chandle case matching
+      // Test 9: Chandle case matching (no binding - VCS limitation)
       cht = tagged Invalid;
       result = 0;
       case (cht) matches
          tagged Invalid : result = 1;
-         tagged Handle .h : result = 2;
+         tagged Handle .* : result = 2;  // Wildcard - can't bind chandle
       endcase
       `checkh(result, 1);
 
