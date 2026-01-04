@@ -58,101 +58,101 @@
 %Error-UNSUPPORTED: t/t_tagged_if.v:89:5: Unsupported: void (for tagged unions)
    89 |     void  Invalid;
       |     ^~~~
-%Error: t/t_tagged_if.v:109:9: syntax error, unexpected tagged, expecting IDENTIFIER-for-type
-  109 |     v = tagged Invalid;
+%Error-UNSUPPORTED: t/t_tagged_if.v:97:17: Unsupported: tagged union
+   97 |   typedef union tagged {
+      |                 ^~~~~~
+%Error-UNSUPPORTED: t/t_tagged_if.v:98:5: Unsupported: void (for tagged unions)
+   98 |     void  Invalid;
+      |     ^~~~
+%Error: t/t_tagged_if.v:122:9: syntax error, unexpected tagged, expecting IDENTIFIER-for-type
+  122 |     v = tagged Invalid;
       |         ^~~~~~
         ... See the manual at https://verilator.org/verilator_doc.html?v=latest for more assistance.
-%Error: t/t_tagged_if.v:111:33: syntax error, unexpected ')', expecting '.' or tagged or .*
-  111 |     if (v matches tagged Invalid)
+%Error: t/t_tagged_if.v:124:33: syntax error, unexpected ')', expecting '.' or tagged or .*
+  124 |     if (v matches tagged Invalid)
       |                                 ^
-%Error: t/t_tagged_if.v:118:9: syntax error, unexpected tagged, expecting IDENTIFIER-for-type
-  118 |     v = tagged Valid (42);
+%Error: t/t_tagged_if.v:131:9: syntax error, unexpected tagged, expecting IDENTIFIER-for-type
+  131 |     v = tagged Valid (42);
       |         ^~~~~~
-%Error-UNSUPPORTED: t/t_tagged_if.v:120:32: Unsupported: '{} tagged patterns
-  120 |     if (v matches tagged Valid .n)
+%Error-UNSUPPORTED: t/t_tagged_if.v:133:32: Unsupported: '{} tagged patterns
+  133 |     if (v matches tagged Valid .n)
       |                                ^
-%Error-UNSUPPORTED: t/t_tagged_if.v:120:19: Unsupported: '{} tagged patterns
-  120 |     if (v matches tagged Valid .n)
+%Error-UNSUPPORTED: t/t_tagged_if.v:133:19: Unsupported: '{} tagged patterns
+  133 |     if (v matches tagged Valid .n)
       |                   ^~~~~~
-%Error-UNSUPPORTED: t/t_tagged_if.v:120:11: Unsupported: matches operator
-  120 |     if (v matches tagged Valid .n)
+%Error-UNSUPPORTED: t/t_tagged_if.v:133:11: Unsupported: matches operator
+  133 |     if (v matches tagged Valid .n)
       |           ^~~~~~~
-%Error: t/t_tagged_if.v:127:9: syntax error, unexpected tagged, expecting IDENTIFIER-for-type
-  127 |     v = tagged Valid (100);
+%Error: t/t_tagged_if.v:140:9: syntax error, unexpected tagged, expecting IDENTIFIER-for-type
+  140 |     v = tagged Valid (100);
       |         ^~~~~~
-%Error: t/t_tagged_if.v:129:33: syntax error, unexpected ')', expecting '.' or tagged or .*
-  129 |     if (v matches tagged Invalid)
+%Error: t/t_tagged_if.v:142:33: syntax error, unexpected ')', expecting '.' or tagged or .*
+  142 |     if (v matches tagged Invalid)
       |                                 ^
-%Error: t/t_tagged_if.v:136:10: syntax error, unexpected tagged, expecting IDENTIFIER-for-type
-  136 |     wt = tagged Wide60 (60'hFEDCBA987654321);
+%Error: t/t_tagged_if.v:149:10: syntax error, unexpected tagged, expecting IDENTIFIER-for-type
+  149 |     wt = tagged Wide60 (60'hFEDCBA987654321);
       |          ^~~~~~
-%Error-UNSUPPORTED: t/t_tagged_if.v:138:34: Unsupported: '{} tagged patterns
-  138 |     if (wt matches tagged Wide60 .w)
+%Error-UNSUPPORTED: t/t_tagged_if.v:151:34: Unsupported: '{} tagged patterns
+  151 |     if (wt matches tagged Wide60 .w)
       |                                  ^
-%Error-UNSUPPORTED: t/t_tagged_if.v:138:20: Unsupported: '{} tagged patterns
-  138 |     if (wt matches tagged Wide60 .w)
+%Error-UNSUPPORTED: t/t_tagged_if.v:151:20: Unsupported: '{} tagged patterns
+  151 |     if (wt matches tagged Wide60 .w)
       |                    ^~~~~~
-%Error-UNSUPPORTED: t/t_tagged_if.v:138:12: Unsupported: matches operator
-  138 |     if (wt matches tagged Wide60 .w)
+%Error-UNSUPPORTED: t/t_tagged_if.v:151:12: Unsupported: matches operator
+  151 |     if (wt matches tagged Wide60 .w)
       |            ^~~~~~~
-%Error: t/t_tagged_if.v:145:10: syntax error, unexpected tagged, expecting IDENTIFIER-for-type
-  145 |     wt = tagged Wide90 (90'hDE_ADBEEFCA_FEBABE12_3456);
+%Error: t/t_tagged_if.v:158:10: syntax error, unexpected tagged, expecting IDENTIFIER-for-type
+  158 |     wt = tagged Wide90 (90'hDE_ADBEEFCA_FEBABE12_3456);
       |          ^~~~~~
-%Error-UNSUPPORTED: t/t_tagged_if.v:147:34: Unsupported: '{} tagged patterns
-  147 |     if (wt matches tagged Wide90 .w)
+%Error-UNSUPPORTED: t/t_tagged_if.v:160:34: Unsupported: '{} tagged patterns
+  160 |     if (wt matches tagged Wide90 .w)
       |                                  ^
-%Error-UNSUPPORTED: t/t_tagged_if.v:147:20: Unsupported: '{} tagged patterns
-  147 |     if (wt matches tagged Wide90 .w)
+%Error-UNSUPPORTED: t/t_tagged_if.v:160:20: Unsupported: '{} tagged patterns
+  160 |     if (wt matches tagged Wide90 .w)
       |                    ^~~~~~
-%Error-UNSUPPORTED: t/t_tagged_if.v:147:12: Unsupported: matches operator
-  147 |     if (wt matches tagged Wide90 .w)
+%Error-UNSUPPORTED: t/t_tagged_if.v:160:12: Unsupported: matches operator
+  160 |     if (wt matches tagged Wide90 .w)
       |            ^~~~~~~
-%Error: t/t_tagged_if.v:154:10: syntax error, unexpected tagged, expecting IDENTIFIER-for-type
-  154 |     wt = tagged Byte8NonZeroLSB (8'hA5);
+%Error: t/t_tagged_if.v:167:10: syntax error, unexpected tagged, expecting IDENTIFIER-for-type
+  167 |     wt = tagged Byte8NonZeroLSB (8'hA5);
       |          ^~~~~~
-%Error-UNSUPPORTED: t/t_tagged_if.v:156:43: Unsupported: '{} tagged patterns
-  156 |     if (wt matches tagged Byte8NonZeroLSB .b)
+%Error-UNSUPPORTED: t/t_tagged_if.v:169:43: Unsupported: '{} tagged patterns
+  169 |     if (wt matches tagged Byte8NonZeroLSB .b)
       |                                           ^
-%Error-UNSUPPORTED: t/t_tagged_if.v:156:20: Unsupported: '{} tagged patterns
-  156 |     if (wt matches tagged Byte8NonZeroLSB .b)
+%Error-UNSUPPORTED: t/t_tagged_if.v:169:20: Unsupported: '{} tagged patterns
+  169 |     if (wt matches tagged Byte8NonZeroLSB .b)
       |                    ^~~~~~
-%Error-UNSUPPORTED: t/t_tagged_if.v:156:12: Unsupported: matches operator
-  156 |     if (wt matches tagged Byte8NonZeroLSB .b)
+%Error-UNSUPPORTED: t/t_tagged_if.v:169:12: Unsupported: matches operator
+  169 |     if (wt matches tagged Byte8NonZeroLSB .b)
       |            ^~~~~~~
-%Error: t/t_tagged_if.v:163:10: syntax error, unexpected tagged, expecting IDENTIFIER-for-type
-  163 |     wt = tagged Word32LittleEndian (32'hDEADBEEF);
+%Error: t/t_tagged_if.v:176:10: syntax error, unexpected tagged, expecting IDENTIFIER-for-type
+  176 |     wt = tagged Word32LittleEndian (32'hDEADBEEF);
       |          ^~~~~~
-%Error-UNSUPPORTED: t/t_tagged_if.v:165:46: Unsupported: '{} tagged patterns
-  165 |     if (wt matches tagged Word32LittleEndian .w)
+%Error-UNSUPPORTED: t/t_tagged_if.v:178:46: Unsupported: '{} tagged patterns
+  178 |     if (wt matches tagged Word32LittleEndian .w)
       |                                              ^
-%Error-UNSUPPORTED: t/t_tagged_if.v:165:20: Unsupported: '{} tagged patterns
-  165 |     if (wt matches tagged Word32LittleEndian .w)
+%Error-UNSUPPORTED: t/t_tagged_if.v:178:20: Unsupported: '{} tagged patterns
+  178 |     if (wt matches tagged Word32LittleEndian .w)
       |                    ^~~~~~
-%Error-UNSUPPORTED: t/t_tagged_if.v:165:12: Unsupported: matches operator
-  165 |     if (wt matches tagged Word32LittleEndian .w)
+%Error-UNSUPPORTED: t/t_tagged_if.v:178:12: Unsupported: matches operator
+  178 |     if (wt matches tagged Word32LittleEndian .w)
       |            ^~~~~~~
-%Error: t/t_tagged_if.v:172:10: syntax error, unexpected tagged, expecting IDENTIFIER-for-type
-  172 |     at = tagged Arr '{10, 20, 30, 40};
+%Error: t/t_tagged_if.v:185:10: syntax error, unexpected tagged, expecting IDENTIFIER-for-type
+  185 |     at = tagged Arr '{10, 20, 30, 40};
       |          ^~~~~~
-%Error-UNSUPPORTED: t/t_tagged_if.v:174:31: Unsupported: '{} tagged patterns
-  174 |     if (at matches tagged Arr .a)
+%Error-UNSUPPORTED: t/t_tagged_if.v:187:31: Unsupported: '{} tagged patterns
+  187 |     if (at matches tagged Arr .a)
       |                               ^
-%Error-UNSUPPORTED: t/t_tagged_if.v:174:20: Unsupported: '{} tagged patterns
-  174 |     if (at matches tagged Arr .a)
+%Error-UNSUPPORTED: t/t_tagged_if.v:187:20: Unsupported: '{} tagged patterns
+  187 |     if (at matches tagged Arr .a)
       |                    ^~~~~~
-%Error-UNSUPPORTED: t/t_tagged_if.v:174:12: Unsupported: matches operator
-  174 |     if (at matches tagged Arr .a)
+%Error-UNSUPPORTED: t/t_tagged_if.v:187:12: Unsupported: matches operator
+  187 |     if (at matches tagged Arr .a)
       |            ^~~~~~~
-%Error: t/t_tagged_if.v:181:10: syntax error, unexpected tagged, expecting IDENTIFIER-for-type
-  181 |     at = tagged Scalar (999);
+%Error: t/t_tagged_if.v:194:10: syntax error, unexpected tagged, expecting IDENTIFIER-for-type
+  194 |     at = tagged Scalar (999);
       |          ^~~~~~
-%Error-UNSUPPORTED: t/t_tagged_if.v:183:34: Unsupported: '{} tagged patterns
-  183 |     if (at matches tagged Scalar .s)
+%Error-UNSUPPORTED: t/t_tagged_if.v:196:34: Unsupported: '{} tagged patterns
+  196 |     if (at matches tagged Scalar .s)
       |                                  ^
-%Error-UNSUPPORTED: t/t_tagged_if.v:183:20: Unsupported: '{} tagged patterns
-  183 |     if (at matches tagged Scalar .s)
-      |                    ^~~~~~
-%Error-UNSUPPORTED: t/t_tagged_if.v:183:12: Unsupported: matches operator
-  183 |     if (at matches tagged Scalar .s)
-      |            ^~~~~~~
 %Error: Exiting due to

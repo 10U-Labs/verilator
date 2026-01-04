@@ -90,6 +90,16 @@ module t;
     Color ColorVal;
   } EnumType;
 
+`ifndef VCS
+  // Tagged union with event member
+  // Note: VCS incorrectly reports "the event data type is not allowed in structures and unions"
+  // but IEEE 1800-2023 does not prohibit this
+  typedef union tagged {
+    void  Invalid;
+    event EvtVal;
+  } EventType;
+`endif
+
   VInt v;
   WideType wt;
   ArrayType at;
@@ -100,6 +110,9 @@ module t;
   RealType rt;
   StringType st;
   EnumType et;
+`ifndef VCS
+  EventType evt;
+`endif
   int result;
   bit [59:0] wide60_result;
   bit [89:0] wide90_result;
@@ -380,6 +393,17 @@ module t;
     end else
       result = -1;
     `checkh(result, 1);
+
+`ifndef VCS
+    // Test 25: Event member if matching
+    evt = tagged Invalid;
+    result = 0;
+    if (evt matches tagged Invalid)
+      result = 1;
+    else
+      result = 2;
+    `checkh(result, 1);
+`endif
 
     $write("*-* All Finished *-*\n");
     $finish;
