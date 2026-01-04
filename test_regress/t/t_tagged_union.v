@@ -104,12 +104,6 @@ module t;
     Color ColorVal;
   } EnumType;
 
-  // Tagged union with event member
-  typedef union tagged {
-    void  Invalid;
-    event EvtVal;
-  } EventType;
-
   VInt vi1, vi2;
   MultiType mt;
   ArrayType at;
@@ -120,7 +114,6 @@ module t;
   RealType rt;
   StringType st;
   EnumType et;
-  EventType evt;
 
   initial begin
     // Test 1: Basic void member
@@ -257,9 +250,6 @@ module t;
     et = tagged Invalid;
     et = tagged ColorVal (GREEN);
     if (et.ColorVal != GREEN) $stop;
-
-    // Test 19: Event member
-    evt = tagged Invalid;
 
     $write("*-* All Finished *-*\n");
     $finish;

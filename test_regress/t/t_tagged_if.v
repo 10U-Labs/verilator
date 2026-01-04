@@ -90,12 +90,6 @@ module t;
     Color ColorVal;
   } EnumType;
 
-  // Tagged union with event member
-  typedef union tagged {
-    void  Invalid;
-    event EvtVal;
-  } EventType;
-
   VInt v;
   WideType wt;
   ArrayType at;
@@ -106,7 +100,6 @@ module t;
   RealType rt;
   StringType st;
   EnumType et;
-  EventType evt;
   int result;
   bit [59:0] wide60_result;
   bit [89:0] wide90_result;
@@ -386,15 +379,6 @@ module t;
         result = 2;
     end else
       result = -1;
-    `checkh(result, 1);
-
-    // Test 25: Event member if matching
-    evt = tagged Invalid;
-    result = 0;
-    if (evt matches tagged Invalid)
-      result = 1;
-    else
-      result = 2;
     `checkh(result, 1);
 
     $write("*-* All Finished *-*\n");

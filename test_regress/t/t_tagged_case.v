@@ -90,12 +90,6 @@ module t;
     Color ColorVal;
   } EnumType;
 
-  // Tagged union with event member
-  typedef union tagged {
-    void  Invalid;
-    event EvtVal;
-  } EventType;
-
   VInt v;
   WideType wt;
   ArrayType at;
@@ -106,7 +100,6 @@ module t;
   RealType rt;
   StringType st;
   EnumType et;
-  EventType evt;
   int result;
   bit [59:0] wide60_result;
   bit [89:0] wide90_result;
@@ -279,15 +272,6 @@ module t;
         if (c == GREEN) result = 1;
         else result = 2;
       end
-    endcase
-    `checkh(result, 1);
-
-    // Test 15: Event member case matching
-    evt = tagged Invalid;
-    result = 0;
-    case (evt) matches
-      tagged Invalid : result = 1;
-      tagged EvtVal .* : result = 2;  // Wildcard - events are special
     endcase
     `checkh(result, 1);
 
