@@ -7,6 +7,14 @@
 // Test if pattern matching with tagged unions
 // IEEE 1800-2023 Section 12.6.2
 
+// Class for testing class references in tagged unions
+class TestClass;
+   int value;
+   function new(int v);
+      value = v;
+   endfunction
+endclass
+
 `define stop $stop
 `define checkh(gotv,expv) do if ((gotv) !== (expv)) begin $write("%%Error: %s:%0d:  got=%0x exp=%0x (%s !== %s)\n", `__FILE__,`__LINE__, (gotv), (expv), `"gotv`", `"expv`"); `stop; end while(0);
 
@@ -48,10 +56,25 @@ module t;
       } Jmp;
    } Instr;
 
+   // Tagged union with chandle member
+   typedef union tagged {
+      void    Invalid;
+      chandle Handle;
+   } ChandleType;
+
+   // Tagged union with class reference member
+   typedef union tagged {
+      void      Invalid;
+      TestClass Obj;
+   } ClassType;
+
    VInt v;
    WideType wt;
    ArrayType at;
    Instr instr;
+   ChandleType cht;
+   ClassType clt;
+   TestClass obj;
    int result;
    bit [59:0] wide60_result;
    bit [89:0] wide90_result;
@@ -225,6 +248,41 @@ module t;
       else if (instr matches tagged Jmp .*)
          result = 2;
       `checkh(result, 1);
+
+      // Test 19: Chandle member if matching
+      cht = tagged Invalid;
+      result = 0;
+      if (cht matches tagged Invalid)
+         result = 1;
+      else
+         result = 2;
+      `checkh(result, 1);
+
+      cht = tagged Handle (null);
+      result = 0;
+      if (cht matches tagged Handle .h)
+         result = 1;
+      else
+         result = 2;
+      `checkh(result, 1);
+
+      // Test 20: Class reference member if matching
+      obj = new(42);
+      clt = tagged Invalid;
+      result = 0;
+      if (clt matches tagged Invalid)
+         result = 1;
+      else
+         result = 2;
+      `checkh(result, 1);
+
+      clt = tagged Obj (obj);
+      result = 0;
+      if (clt matches tagged Obj .o)
+         result = o.value;
+      else
+         result = -1;
+      `checkh(result, 42);
 
       $write("*-* All Finished *-*\n");
       $finish;
