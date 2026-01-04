@@ -2435,6 +2435,10 @@ class VlTest:
                 if n:
                     l1o.append(line)
                     break  # Trunc rest
+                (line, n) = re.subn(r'Cannot continue.*', r"Cannot continue", line)
+                if n:
+                    l1o.append(line)
+                    break  # Trunc rest
                 l1o.append(line)
             #
             l1s = l1o
