@@ -1872,7 +1872,8 @@ class LinkDotFindVisitor final : public VNVisitor {
                 AstVar* argrefp = nullptr;
                 if (AstParseRef* const parserefp = VN_CAST(argp, ParseRef)) {
                     // IEEE 1800-2023 12.7.3: foreach loop variable type shall be int (2-state)
-                    // This might get changed in V3Width when types resolve (e.g., for assoc arrays)
+                    // This might get changed in V3Width when types resolve (e.g., for assoc
+                    // arrays)
                     argrefp = new AstVar{parserefp->fileline(), VVarType::BLOCKTEMP,
                                          parserefp->name(), argp->findIntDType()};
                     argrefp->lifetime(VLifetime::AUTOMATIC_EXPLICIT);
