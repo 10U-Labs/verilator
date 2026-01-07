@@ -5707,7 +5707,7 @@ class WidthVisitor final : public VNVisitor {
             // Check specifically for 2-state vs 4-state mismatch for unpacked array
             // to unpacked array assignments, as this is a common IEEE compliance issue.
             // Note: Streaming operators and string literals have implicit conversion rules.
-            {
+            if (nodep->rhsp()->dtypep()) {  // May be null on earlier errors
                 const AstNodeDType* const lhsDtp = lhsDTypep->skipRefp();
                 const AstNodeDType* const rhsDtp = nodep->rhsp()->dtypep()->skipRefp();
                 // Only check unpacked array to unpacked array assignments
