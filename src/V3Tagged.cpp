@@ -158,20 +158,19 @@ class TaggedVisitor final : public VNVisitor {
         auto it = m_unionMemberCache.find(unionp);
         if (it != m_unionMemberCache.end()) return it->second;
         auto& map = m_unionMemberCache[unionp];
-        for (AstMemberDType* mp = unionp->membersp(); mp;
-             mp = VN_AS(mp->nextp(), MemberDType)) {
+        for (AstMemberDType* mp = unionp->membersp(); mp; mp = VN_AS(mp->nextp(), MemberDType)) {
             map[mp->name()] = mp;
         }
         return map;
     }
 
     // Get or build struct field map for O(1) lookups
-    std::unordered_map<string, AstMemberDType*>& getStructFieldMap(AstNodeUOrStructDType* structp) {
+    std::unordered_map<string, AstMemberDType*>&
+    getStructFieldMap(AstNodeUOrStructDType* structp) {
         auto it = m_structFieldCache.find(structp);
         if (it != m_structFieldCache.end()) return it->second;
         auto& map = m_structFieldCache[structp];
-        for (AstMemberDType* mp = structp->membersp(); mp;
-             mp = VN_AS(mp->nextp(), MemberDType)) {
+        for (AstMemberDType* mp = structp->membersp(); mp; mp = VN_AS(mp->nextp(), MemberDType)) {
             map[mp->name()] = mp;
         }
         return map;
@@ -215,14 +214,16 @@ class TaggedVisitor final : public VNVisitor {
     }
 
     // Check if a variable name matches exactly or with mangled suffix - O(1) amortized
-    static bool matchesVarName(const string& varpName, const string& varName, const string& suffix) {
+    static bool matchesVarName(const string& varpName, const string& varName,
+                               const string& suffix) {
         if (varpName == varName) return true;
         if (varpName.size() <= suffix.size()) return false;
         return varpName.compare(varpName.size() - suffix.size(), suffix.size(), suffix) == 0;
     }
 
     // Search a statement list for a variable matching name or suffix
-    static AstVar* searchStmtsForVar(AstNode* stmtsp, const string& varName, const string& suffix) {
+    static AstVar* searchStmtsForVar(AstNode* stmtsp, const string& varName,
+                                     const string& suffix) {
         for (AstNode* stmtp = stmtsp; stmtp; stmtp = stmtp->nextp()) {
             AstVar* const varp = VN_CAST(stmtp, Var);
             if (!varp) continue;
@@ -449,9 +450,10 @@ class TaggedVisitor final : public VNVisitor {
     }
 
     // Process PatMember list and create variable assignments
-    AstNode* processPatMemberBindings(const PatternBindContext& ctx, AstPatMember* firstp,
-                                      AstNodeExpr* dataExtractp, AstNodeUOrStructDType* structDtp,
-                                      const std::unordered_map<string, std::pair<int, int>>* fieldInfop) {
+    AstNode*
+    processPatMemberBindings(const PatternBindContext& ctx, AstPatMember* firstp,
+                             AstNodeExpr* dataExtractp, AstNodeUOrStructDType* structDtp,
+                             const std::unordered_map<string, std::pair<int, int>>* fieldInfop) {
         AstNode* assignsp = nullptr;
         for (AstPatMember* patMemp = firstp; patMemp;
              patMemp = VN_CAST(patMemp->nextp(), PatMember)) {
@@ -545,9 +547,9 @@ class TaggedVisitor final : public VNVisitor {
         if (AstConsPackUOrStruct* const structp = VN_CAST(tagExprp->exprp(), ConsPackUOrStruct)) {
             AstNodeExpr* dataExtractp;
             if (ctx.isUnpacked) {
-                dataExtractp = makeDataExtractUnpacked(ctx.fl, exprp->cloneTree(false),
-                                                       ctx.memberp->name(),
-                                                       ctx.memberp->subDTypep());
+                dataExtractp
+                    = makeDataExtractUnpacked(ctx.fl, exprp->cloneTree(false), ctx.memberp->name(),
+                                              ctx.memberp->subDTypep());
             } else {
                 dataExtractp = makeDataExtract(ctx.fl, exprp->cloneTree(false), ctx.unionp,
                                                ctx.memberp->width());
@@ -568,9 +570,9 @@ class TaggedVisitor final : public VNVisitor {
 
             AstNodeExpr* dataExtractp;
             if (ctx.isUnpacked) {
-                dataExtractp = makeDataExtractUnpacked(ctx.fl, exprp->cloneTree(false),
-                                                       ctx.memberp->name(),
-                                                       ctx.memberp->subDTypep());
+                dataExtractp
+                    = makeDataExtractUnpacked(ctx.fl, exprp->cloneTree(false), ctx.memberp->name(),
+                                              ctx.memberp->subDTypep());
             } else {
                 dataExtractp
                     = makeDataExtract(ctx.fl, exprp->cloneTree(false), ctx.unionp, structWidth);
@@ -579,9 +581,9 @@ class TaggedVisitor final : public VNVisitor {
             if (!dataExtractp) return nullptr;
 
             const PatternBindContext bindCtx{ctx.fl, ifp, ctx.isUnpacked};
-            AstNode* assignsp = processPatMemberBindings(
-                bindCtx, VN_CAST(patternp->itemsp(), PatMember), dataExtractp, structDtp,
-                &fieldInfo);
+            AstNode* assignsp
+                = processPatMemberBindings(bindCtx, VN_CAST(patternp->itemsp(), PatMember),
+                                           dataExtractp, structDtp, &fieldInfo);
             VL_DO_DANGLING(dataExtractp->deleteTree(), dataExtractp);
             return assignsp;
         }
@@ -625,9 +627,10 @@ class TaggedVisitor final : public VNVisitor {
 
     // Handle simple pattern variable binding (tagged Member .var)
     // Returns pair of (varDecl, varAssign) or (nullptr, nullptr) if not applicable
-    std::pair<AstVar*, AstAssign*>
-    handleSimplePatternVar(const TaggedMatchContext& ctx, AstNodeExpr* exprp,
-                           const string& memberName, AstPatternVar* patVarp) {
+    std::pair<AstVar*, AstAssign*> handleSimplePatternVar(const TaggedMatchContext& ctx,
+                                                          AstNodeExpr* exprp,
+                                                          const string& memberName,
+                                                          AstPatternVar* patVarp) {
         const string& varName = patVarp->name();
         const int memberWidth = ctx.memberp->width();
 
