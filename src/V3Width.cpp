@@ -5207,14 +5207,8 @@ class WidthVisitor final : public VNVisitor {
                                     // cpm->dtypep() is the MemberDType for the field
                                     AstMemberDType* const fieldDtp
                                         = VN_CAST(cpm->dtypep(), MemberDType);
-                                    // Find PatternVar inside rhsp (may be inside Extend)
-                                    AstNode* valuep = cpm->rhsp();
-                                    // Look through Extend nodes
-                                    while (AstExtend* const extp = VN_CAST(valuep, Extend)) {
-                                        valuep = extp->lhsp();
-                                    }
                                     if (AstPatternVar* const patVarp
-                                        = VN_CAST(valuep, PatternVar)) {
+                                        = VN_CAST(cpm->rhsp(), PatternVar)) {
                                         if (fieldDtp) {
                                             // Update both the VAR and the PatternVar dtype
                                             updatePatternVarType(patVarp->name(),
