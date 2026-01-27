@@ -4954,7 +4954,7 @@ class WidthVisitor final : public VNVisitor {
     void visit(AstMatches* nodep) override {
         if (nodep->didWidthAndSet()) return;
         // Width the LHS expression (the value being matched)
-        userIterateAndNext(nodep->lhsp(), WidthVP{CONTEXT, PRELIM}.p());
+        userIterateAndNext(nodep->lhsp(), WidthVP{CONTEXT_DET, PRELIM}.p());
         // Pass LHS dtype to pattern for context
         AstNodeDType* const lhsDtp = nodep->lhsp()->dtypep();
         if (nodep->patternp()) {
@@ -4962,7 +4962,7 @@ class WidthVisitor final : public VNVisitor {
         }
         // Width guard expression if present
         if (nodep->guardp()) {
-            userIterateAndNext(nodep->guardp(), WidthVP{CONTEXT, PRELIM}.p());
+            userIterateAndNext(nodep->guardp(), WidthVP{CONTEXT_DET, PRELIM}.p());
         }
         // Matches returns a boolean
         nodep->dtypeSetBit();
