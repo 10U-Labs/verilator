@@ -1,5 +1,5 @@
-%Error-UNSUPPORTED: t/t_tagged_pattern_wildcard_bad.v:18:19: Unsupported: pattern wildcard
+%Error: t/t_tagged_pattern_wildcard_bad.v:18:11: Expected tagged pattern in matches expression
    18 |     if (v matches .*)
-      |                   ^~
-              ... For error description see https://verilator.org/warn/UNSUPPORTED?v=latest
+      |           ^~~~~~~
+        ... See the manual at https://verilator.org/verilator_doc.html?v=latest for more assistance.
 %Error: Exiting due to
