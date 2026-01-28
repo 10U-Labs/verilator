@@ -241,7 +241,7 @@ class WidthVisitor final : public VNVisitor {
         m_containingClassp;  // Containing class cache for containingClass() function
     std::unordered_set<AstVar*> m_aliasedVars;  // Variables referenced in alias
     std::unordered_map<string, AstMemberDType*>
-        m_taggedMemberMap;  // Member name→dtype for case/if-matches O(1) lookup
+        m_taggedMemberMap;  // Member name->dtype for case/if-matches O(1) lookup
     AstUnionDType* m_taggedMemberMapUnionp = nullptr;  // Union the map was built from
 
     static constexpr int ENUM_LOOKUP_BITS = 16;  // Maximum # bits to make enum lookup table
@@ -3313,7 +3313,9 @@ class WidthVisitor final : public VNVisitor {
             }
         }
         const bool isHardPackedUnion
-            = nodep->packed() && VN_IS(nodep, UnionDType) && !VN_CAST(nodep, UnionDType)->isSoft();
+            = nodep->packed() && VN_IS(nodep, UnionDType)
+              && !VN_CAST(nodep, UnionDType)->isSoft()
+              && !VN_CAST(nodep, UnionDType)->isTagged();
 
         // Determine bit assignments and width
         if (VN_IS(nodep, UnionDType) || nodep->packed()) {
@@ -4910,6 +4912,14 @@ class WidthVisitor final : public VNVisitor {
         }
     }
 
+    // Helper: check if node is inside a case-matches condition (O(1) traversal)
+    static bool isInCaseMatchesCondition(AstNode* nodep) {
+        AstCaseItem* const itemp = VN_CAST(nodep->backp(), CaseItem);
+        if (!itemp) return false;
+        AstCase* const casep = VN_CAST(itemp->backp(), Case);
+        return casep && casep->caseMatches();
+    }
+
     void visit(AstTaggedExpr* nodep) override {
         if (nodep->didWidthAndSet()) return;
         // Get context type from parent (e.g., assignment LHS type)
@@ -4929,7 +4939,7 @@ class WidthVisitor final : public VNVisitor {
             if (nodep->exprp()) userIterateAndNext(nodep->exprp(), WidthVP{SELF, BOTH}.p());
             return;
         }
-        // Look up member by name — O(1) if map matches this union, else O(M) scan
+        // Look up member by name -- O(1) if map matches this union, else O(M) scan
         AstMemberDType* memberp = nullptr;
         if (m_taggedMemberMapUnionp == unionp && !m_taggedMemberMap.empty()) {
             const auto it = m_taggedMemberMap.find(nodep->name());
@@ -4961,7 +4971,7 @@ class WidthVisitor final : public VNVisitor {
             nodep->v3error("Void tagged union member '" << nodep->name()
                                                         << "' should not have an expression");
         }
-        if (!isVoid && !nodep->exprp()) {
+        if (!isVoid && !nodep->exprp() && !isInCaseMatchesCondition(nodep)) {
             nodep->v3error("Non-void tagged union member '" << nodep->name()
                                                             << "' requires an expression");
         }
@@ -5026,9 +5036,13 @@ class WidthVisitor final : public VNVisitor {
         }
     }
     void visit(AstPatternStar* nodep) override {
-        // Pattern wildcards are currently unsupported
-        nodep->v3warn(E_UNSUPPORTED, "Unsupported: pattern wildcard");
-        nodep->dtypeSetBit();
+        if (nodep->didWidthAndSet()) return;
+        // Wildcard pattern: match any value without binding (V3Tagged handles lowering)
+        if (m_vup && m_vup->dtypeNullp()) {
+            nodep->dtypep(m_vup->dtypep());
+        } else {
+            nodep->dtypeSetBit();
+        }
     }
     void visit(AstMatches* nodep) override {
         if (nodep->didWidthAndSet()) return;
@@ -5744,7 +5758,7 @@ class WidthVisitor final : public VNVisitor {
         iterateCheckBool(nodep, "If", nodep->condp(), BOTH);
     }
 
-    // Targeted traversal: collect pattern var name→dtype from known node types.
+    // Targeted traversal: collect pattern var name->dtype from known node types.
     // Recursive dispatch on node type. O(D) where D = pattern nesting depth (typically 1-3).
     void collectPatternVarTypes(AstNode* nodep, std::map<string, AstNodeDType*>& types) {
         if (!nodep) return;
@@ -5787,28 +5801,36 @@ class WidthVisitor final : public VNVisitor {
         }
     }
 
-    // Update placeholder vars for if-matches (parallel to updateCaseMatchesPlaceholderVars)
+    // Helper: find AstBegin containing placeholder vars -- O(S) scan, 1 arg
+    static AstBegin* findPlaceholderVarBegin(AstNodeIf* nodep) {
+        // Normal case: begin inside thensp
+        for (AstNode* stmtp = nodep->thensp(); stmtp; stmtp = stmtp->nextp()) {
+            if (AstBegin* const beginp = VN_CAST(stmtp, Begin)) return beginp;
+        }
+        // Guard case: if wrapped in outer begin (V3LinkParse wraps guarded if)
+        return VN_CAST(nodep->backp(), Begin);
+    }
+
+    // Helper: apply types to placeholder vars -- O(V * log M), 2 args
+    static void applyPlaceholderVarTypes(AstBegin* beginp,
+                                         const std::map<string, AstNodeDType*>& types) {
+        for (AstNode* childp = beginp->stmtsp(); childp; childp = childp->nextp()) {
+            if (AstVar* const varp = VN_CAST(childp, Var)) {
+                const auto it = types.find(varp->name());
+                if (it != types.end()) varp->dtypep(it->second);
+            }
+        }
+    }
+
+    // Update placeholder vars for if-matches -- O(D + S + V*log M), 1 arg
     void updateIfMatchesPlaceholderVars(AstNodeIf* nodep) {
         AstMatches* const matchesp = VN_CAST(nodep->condp(), Matches);
         if (!matchesp) return;
-        // Collect pattern var types from the matches pattern
         std::map<string, AstNodeDType*> patVarTypes;
-        collectPatternVarTypes(matchesp->patternp(), patVarTypes);
+        collectPatternVarTypes(matchesp->patternp(), patVarTypes);  // O(D)
         if (patVarTypes.empty()) return;
-        // Find the AstBegin block wrapping thensp
-        AstBegin* beginp = nullptr;
-        for (AstNode* stmtp = nodep->thensp(); stmtp; stmtp = stmtp->nextp()) {
-            beginp = VN_CAST(stmtp, Begin);
-            if (beginp) break;
-        }
-        if (!beginp) return;
-        // Update placeholder vars inside the begin block
-        for (AstNode* childp = beginp->stmtsp(); childp; childp = childp->nextp()) {
-            if (AstVar* const varp = VN_CAST(childp, Var)) {
-                const auto it = patVarTypes.find(varp->name());
-                if (it != patVarTypes.end()) varp->dtypep(it->second);
-            }
-        }
+        AstBegin* const beginp = findPlaceholderVarBegin(nodep);    // O(S)
+        if (beginp) applyPlaceholderVarTypes(beginp, patVarTypes);  // O(V*log M)
     }
 
     // Helper: build member map for tagged union O(M) lookup
