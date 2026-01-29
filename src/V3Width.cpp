@@ -4912,11 +4912,12 @@ class WidthVisitor final : public VNVisitor {
         }
     }
 
-    // Helper: check if node is inside a case-matches condition (O(1) traversal)
+    // Helper: check if node is inside a case-matches condition -- O(items in case)
     static bool isInCaseMatchesCondition(AstNode* nodep) {
         AstCaseItem* const itemp = VN_CAST(nodep->backp(), CaseItem);
         if (!itemp) return false;
-        AstCase* const casep = VN_CAST(itemp->backp(), Case);
+        // Use aboveLoopp() because backp() returns previous sibling when multiple items exist
+        AstCase* const casep = VN_CAST(itemp->aboveLoopp(), Case);
         return casep && casep->caseMatches();
     }
 
@@ -5774,6 +5775,9 @@ class WidthVisitor final : public VNVisitor {
             }
         } else if (AstPatMember* const memp = VN_CAST(nodep, PatMember)) {
             collectPatternVarTypes(memp->lhssp(), types);
+        } else if (AstMatches* const mp = VN_CAST(nodep, Matches)) {
+            collectPatternVarTypes(mp->patternp(), types);
+            collectPatternVarTypes(mp->guardp(), types);  // Handle chained matches
         }
     }
     // Update placeholder AstVar dtypes in the AstBegin block created by V3LinkParse.
@@ -5827,7 +5831,7 @@ class WidthVisitor final : public VNVisitor {
         AstMatches* const matchesp = VN_CAST(nodep->condp(), Matches);
         if (!matchesp) return;
         std::map<string, AstNodeDType*> patVarTypes;
-        collectPatternVarTypes(matchesp->patternp(), patVarTypes);  // O(D)
+        collectPatternVarTypes(matchesp, patVarTypes);  // O(D) - descends into guardp for chained
         if (patVarTypes.empty()) return;
         AstBegin* const beginp = findPlaceholderVarBegin(nodep);    // O(S)
         if (beginp) applyPlaceholderVarTypes(beginp, patVarTypes);  // O(V*log M)
