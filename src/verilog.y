@@ -1400,9 +1400,9 @@ port<nodep>:                    // ==IEEE: port
         //                      // IEEE: ansi_port_declaration, with [port_direction] removed
         //                      //   IEEE: [ net_port_header | interface_port_header ]
         //                      //         port_identifier { unpacked_dimension } [ '=' constant_expression ]
-        //                      //   IEEE: [ net_port_header | variable_port_header ] '.' port_identifier '(' [ expression ] ')'
         //                      //   IEEE: [ variable_port_header ] port_identifier
         //                      //              { variable_dimension } [ '=' constant_expression ]
+        //                      //   IEEE: '.' port_identifier '(' [ expression ] ')'
         //                      //   Substitute net_port_header = [ port_direction ] net_port_type
         //                      //   Substitute variable_port_header = [ port_direction ] variable_port_type
         //                      //   Substitute net_port_type = [ net_type ] data_type_or_implicit
@@ -1477,6 +1477,13 @@ port<nodep>:                    // ==IEEE: port
         |       portDirNetE /*implicit*/        portSig variable_dimensionListE sigAttrListE '=' constExpr
                         { $$ = $2; /*VARDTYPE-same*/
                           if (AstVar* vp = VARDONEP($$, $3, $4)) { addNextNull($$, vp); vp->valuep($6); } }
+        //                      //   IEEE: '.' port_identifier '(' [ expression ] ')'
+        |       portDirNetE /*implicit*/ '.' portSig '(' expr ')'
+                        { $$ = $3; DEL($5);
+                          BBUNSUP($<fl>2, "Unsupported: complex ports (IEEE 1800-2017 23.2.2.1/2)"); }
+        //                      // IEEE: part of (non-ansi) port_reference
+        |       '{' port_expressionList '}'
+                        { $$ = $2; }
         ;
 
 portDirNetE:                    // IEEE: part of port, optional net type and/or direction
@@ -1498,6 +1505,18 @@ portSig<nodep>:
                         { $$ = new AstPort{$<fl>1, PINNUMINC(), *$1}; }
         |       idSVKwd
                         { $$ = new AstPort{$<fl>1, PINNUMINC(), *$1}; }
+        ;
+
+port_expressionList<nodep>:  // IEEE: part of (non-ansi) port_reference
+                port_reference                          { $$ = $1; }
+        |       port_expressionList ',' port_reference  { $$ = addNextNull($1, $3); }
+        ;
+
+port_reference<nodep>:  // IEEE: (non-ansi) port-reference
+        //                      // IEEE: port_identifier constant_select
+        //                      // constant_select ::= [ '[' constant_part_select_range ']' ]
+                id/*port_identifier*/                   { $$ = nullptr; }  // UNSUP above here
+        |       id/*port_identifier*/ part_select_range  { $$ = nullptr; DEL($2); }  // UNSUP above here
         ;
 
 //**********************************************************************
@@ -7029,6 +7048,8 @@ bins_or_options<nodep>:  // ==IEEE: bins_or_options
                         { $$ = nullptr; BBCOVERIGN($<fl>4, "Ignoring unsupported: cover bin specification"); DEL($3, $6, $8); }
         |       bins_keyword idAny/*bin_identifier*/ bins_orBraE '=' '{' range_list '}' yWITH__PAREN '(' cgexpr ')' iffE
                         { $$ = nullptr; BBCOVERIGN($<fl>8, "Ignoring unsupported: cover bin 'with' specification"); DEL($3, $6, $10, $12); }
+        |       bins_keyword idAny/*bin_identifier*/ bins_orBraE '=' id/*cover_point_id*/ yWITH__PAREN '(' cgexpr ')' iffE
+                        { $$ = nullptr; BBCOVERIGN($<fl>6, "Ignoring unsupported: cover bin 'with' specification"); DEL($3, $8, $10); }
         |       yWILDCARD bins_keyword idAny/*bin_identifier*/ bins_orBraE '=' '{' range_list '}' iffE
                         { $$ = nullptr; BBCOVERIGN($<fl>5, "Ignoring unsupported: cover bin 'wildcard' specification"); DEL($4, $7, $9); }
         |       yWILDCARD bins_keyword idAny/*bin_identifier*/ bins_orBraE '=' '{' range_list '}' yWITH__PAREN '(' cgexpr ')' iffE
