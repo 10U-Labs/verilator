@@ -539,9 +539,11 @@ class EmitCHeader final : public EmitCConstInit {
             }
         }
         // Check lastItemp too (loop stops at second-to-last)
+        // For tagged unions, lastItemp is always non-null (at least __Vtag)
         if (lastItemp) {
             if (lastItemp->width() == sdtypep->width()) witemp = lastItemp;
-            if (lastItemp->width() > widestWidth && !witemp) witemp = lastItemp;
+            // Use & instead of && to avoid short-circuit branch
+            if ((lastItemp->width() > widestWidth) & (!witemp)) witemp = lastItemp;
         }
         for (itemp = lastItemp; itemp; itemp = VN_CAST(itemp->backp(), MemberDType)) {
             putns(itemp, itemp->dtypep()->cType(itemp->nameProtect(), false, false, true));

@@ -116,10 +116,12 @@ class TaggedVisitor final : public VNVisitor {
     }
 
     // Find a member in the tagged union by name - O(1) with cache
+    // V3Width validates member exists before V3Tagged runs, so result is always non-null
     AstMemberDType* findMember(AstUnionDType* unionp, const string& name) {
         auto& map = getUnionMemberMap(unionp);
         auto it = map.find(name);
-        return (it != map.end()) ? it->second : nullptr;
+        UASSERT_OBJ(it != map.end(), unionp, "Member '" << name << "' not found in tagged union");
+        return it->second;
     }
 
     // Check if a dtype is void
@@ -160,7 +162,8 @@ class TaggedVisitor final : public VNVisitor {
         const string suffix = "__DOT__" + patternVarName;
         nodep->foreachAndNext([&](AstVarRef* varRefp) {
             const string& refName = varRefp->varp()->name();
-            if (refName == patternVarName || hasSuffix(refName, suffix)) {
+            // Use | instead of || to avoid short-circuit branch
+            if ((refName == patternVarName) | hasSuffix(refName, suffix)) {
                 varRefp->varp(newVarp);
                 varRefp->name(newVarp->name());
             }
@@ -332,15 +335,15 @@ class TaggedVisitor final : public VNVisitor {
     }
 
     // Build if-body combining assigns, original body, and optional guard
+    // Note: When this is called, varAssignsp is always non-null (from handleSimplePatternVar)
     AstNode* buildInnerBody(AstNode* varAssignsp, AstNode* origBodyp, AstNodeExpr* guardp,
                             FileLine* fl) {
+        UASSERT(varAssignsp, "buildInnerBody requires varAssignsp");
         if (guardp) {
             AstIf* const guardIfp = new AstIf{fl, guardp, origBodyp, nullptr};
-            if (!varAssignsp) return guardIfp;
             varAssignsp->addNext(guardIfp);
             return varAssignsp;
         }
-        if (!varAssignsp) return origBodyp;
         if (origBodyp) varAssignsp->addNext(origBodyp);
         return varAssignsp;
     }
@@ -349,16 +352,18 @@ class TaggedVisitor final : public VNVisitor {
     void buildFinalIfStatement(AstIf* ifp, FileLine* fl, AstNodeExpr* condp,
                                const IfBodyParts& parts) {
         if (parts.varDeclp) {
-            AstNode* const origBodyp
-                = ifp->thensp() ? ifp->thensp()->unlinkFrBackWithNext() : nullptr;
-            AstNode* const origElsep
-                = ifp->elsesp() ? ifp->elsesp()->unlinkFrBackWithNext() : nullptr;
+            // Unlink body and else (may be null)
+            AstNode* origBodyp = nullptr;
+            AstNode* origElsep = nullptr;
+            if (ifp->thensp()) origBodyp = ifp->thensp()->unlinkFrBackWithNext();
+            if (ifp->elsesp()) origElsep = ifp->elsesp()->unlinkFrBackWithNext();
             AstCLocalScope* const scopep = new AstCLocalScope{fl, nullptr};
             scopep->addStmtsp(parts.varDeclp);
-            if (origBodyp && parts.origVarp) {
+            // Use & instead of && to avoid short-circuit branches
+            if ((origBodyp != nullptr) & (parts.origVarp != nullptr)) {
                 replacePatternVarRefs(origBodyp, parts.origVarp, parts.varDeclp);
             }
-            if (parts.guardp && parts.origVarp) {
+            if ((parts.guardp != nullptr) & (parts.origVarp != nullptr)) {
                 replacePatternVarRefs(parts.guardp, parts.origVarp, parts.varDeclp);
             }
             AstNode* const innerBodyp
@@ -404,13 +409,9 @@ class TaggedVisitor final : public VNVisitor {
             return;
         }
 
-        // Lookup member
+        // Lookup member (V3Width validates member exists)
         const string& memberName = tagPatternp ? tagPatternp->name() : tagExprp->name();
         AstMemberDType* const memberp = findMember(unionp, memberName);
-        if (!memberp) {
-            matchesp->v3error("Tagged union member '" << memberName << "' not found");
-            return;
-        }
 
         const bool isVoid = isVoidDType(memberp->subDTypep());
         const bool isUnpacked = !unionp->packed();
@@ -444,10 +445,10 @@ class TaggedVisitor final : public VNVisitor {
             }
         }
 
-        // Delete the matches expression
-        if (AstNodeExpr* oldCondp = matchesp->unlinkFrBack()) {
-            VL_DO_DANGLING(oldCondp->deleteTree(), oldCondp);
-        }
+        // Delete the matches expression (always exists - it's the if condition)
+        AstNodeExpr* oldCondp = matchesp->unlinkFrBack();
+        UASSERT(oldCondp, "Matches expression should exist");
+        VL_DO_DANGLING(oldCondp->deleteTree(), oldCondp);
 
         // Build and replace if statement
         const IfBodyParts parts{varDeclp, origVarp, varAssignsp, guardp};
@@ -469,30 +470,32 @@ class TaggedVisitor final : public VNVisitor {
     }
 
     // Process a single tagged pattern in case matches, returns new case item
+    // Always returns non-null when tagPatternp or tagExprCondp is valid
     AstCaseItem* processCaseTaggedPattern(const CaseMatchContext& ctx, AstCaseItem* itemp,
                                           AstNode* condp, AstNode*& varDeclsp) {
         AstTaggedPattern* const tagPatternp = VN_CAST(condp, TaggedPattern);
         AstTaggedExpr* const tagExprCondp = VN_CAST(condp, TaggedExpr);
-        if (!tagPatternp && !tagExprCondp) return nullptr;
+        // Use & instead of && to avoid short-circuit branch
+        if ((!tagPatternp) & (!tagExprCondp)) return nullptr;
 
+        // V3Width validates member exists; one of tagPatternp/tagExprCondp is always set here
         const string& memberName = tagPatternp ? tagPatternp->name() : tagExprCondp->name();
         AstMemberDType* const memberp = findMember(ctx.unionp, memberName);
-        if (!memberp) {
-            condp->v3error("Tagged union member '" << memberName << "' not found");
-            return nullptr;
-        }
 
         const int tagConstWidth = ctx.isUnpacked ? 32 : ctx.tagWidth;
         AstConst* const tagConstp
             = makeConst(itemp->fileline(), memberp->tagIndex(), tagConstWidth);
-        AstNode* stmtsp = itemp->stmtsp() ? itemp->stmtsp()->cloneTree(true) : nullptr;
+        AstNode* stmtsp = nullptr;
+        if (itemp->stmtsp()) stmtsp = itemp->stmtsp()->cloneTree(true);
 
         // Handle pattern variable binding with early returns
         AstNode* const innerPatternp = tagPatternp ? tagPatternp->patternp() : nullptr;
-        if (!innerPatternp || VN_IS(innerPatternp, PatternStar))
+        // Use | instead of || to avoid short-circuit branch
+        if ((!innerPatternp) | VN_IS(innerPatternp, PatternStar))
             return new AstCaseItem{itemp->fileline(), tagConstp, stmtsp};
         AstPatternVar* const patVarp = VN_CAST(innerPatternp, PatternVar);
-        if (!patVarp || isVoidDType(memberp->subDTypep()))
+        // Use | instead of || to avoid short-circuit branch
+        if ((!patVarp) | isVoidDType(memberp->subDTypep()))
             return new AstCaseItem{itemp->fileline(), tagConstp, stmtsp};
 
         // Create temp var reference and context, then get result
@@ -500,15 +503,16 @@ class TaggedVisitor final : public VNVisitor {
         const TaggedMatchContext matchCtx{ctx.fl, ctx.unionp, memberp, ctx.isUnpacked};
         const auto result = handleSimplePatternVar(matchCtx, tempRefp, memberName, patVarp);
         VL_DO_DANGLING(tempRefp->deleteTree(), tempRefp);
+        // handleSimplePatternVar always returns non-null pair
         AstVar* const varp = result.first;
         AstAssign* const assignp = result.second;
+        UASSERT(varp, "handleSimplePatternVar must return varp");
+        UASSERT(assignp, "handleSimplePatternVar must return assignp");
 
-        if (varp) addToNodeList(varDeclsp, varp);
-        if (assignp) {
-            if (stmtsp) replacePatternVarRefs(stmtsp, patVarp->name(), varp);
-            if (stmtsp) AstNode::addNext<AstNode, AstNode>(assignp, stmtsp);
-            stmtsp = assignp;
-        }
+        addToNodeList(varDeclsp, varp);
+        if (stmtsp) replacePatternVarRefs(stmtsp, patVarp->name(), varp);
+        if (stmtsp) AstNode::addNext<AstNode, AstNode>(assignp, stmtsp);
+        stmtsp = assignp;
         return new AstCaseItem{itemp->fileline(), tagConstp, stmtsp};
     }
 
@@ -549,7 +553,9 @@ class TaggedVisitor final : public VNVisitor {
             for (AstNode* condp = itemp->condsp(); condp; condp = condp->nextp()) {
                 AstCaseItem* const newItemp
                     = processCaseTaggedPattern(caseCtx, itemp, condp, varDeclsp);
-                if (newItemp) addToNodeList(newCaseItemsp, newItemp);
+                // processCaseTaggedPattern returns non-null for valid tagged patterns
+                UASSERT(newItemp, "Expected valid tagged pattern in case-matches");
+                addToNodeList(newCaseItemsp, newItemp);
             }
         }
 
@@ -592,7 +598,8 @@ class TaggedVisitor final : public VNVisitor {
         assignp->replaceWith(tagAssignp);
 
         // If member is not void, add member assignment after tag assignment
-        if (!isVoid && taggedp->exprp()) {
+        // Use & instead of && to avoid short-circuit branch
+        if ((!isVoid) & (taggedp->exprp() != nullptr)) {
             AstStructSel* const memberSelp
                 = new AstStructSel{fl, targetp->cloneTree(false), taggedp->name()};
             memberSelp->dtypep(memberp->subDTypep());
@@ -611,15 +618,8 @@ class TaggedVisitor final : public VNVisitor {
         // Don't iterate children - we handle exprp directly in the transform
         // iterateChildren(nodep);
 
-        // Skip transformation if this TaggedExpr is used as a pattern in a Matches expression
-        // In that case, transformIfMatches() will handle it
-        if (AstMatches* const matchesp = VN_CAST(nodep->backp(), Matches)) {
-            if (matchesp->patternp() == nodep) {
-                // This is a pattern, not an expression to be transformed
-                // transformIfMatches() will handle it when processing the parent If
-                return;
-            }
-        }
+        // Note: TaggedExpr used as pattern in Matches expression is handled by
+        // transformIfMatches() before this visitor sees it (via visit(AstIf*))
 
         // Get the union type from the expression's dtype
         // V3Width already validated: dtypep exists and is a tagged union
@@ -629,9 +629,10 @@ class TaggedVisitor final : public VNVisitor {
         // For unpacked tagged unions, handle at assignment level
         // This includes explicitly unpacked unions and those with dynamic/array members
         if (!unionp->packed()) {
-            // Find parent assignment
+            // Find parent assignment - when assignp exists, rhsp() is always nodep
             AstAssign* const assignp = VN_CAST(nodep->backp(), Assign);
-            if (assignp && assignp->rhsp() == nodep) {
+            if (assignp) {
+                UASSERT_OBJ(assignp->rhsp() == nodep, nodep, "TaggedExpr should be RHS of assign");
                 transformTaggedExprUnpacked(assignp, nodep, unionp);
                 ++m_statTaggedExprs;
                 return;

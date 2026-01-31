@@ -4918,7 +4918,9 @@ class WidthVisitor final : public VNVisitor {
             if (AstCaseItem* const itemp = VN_CAST(parentp, CaseItem)) {
                 // Use aboveLoopp() because backp() returns previous sibling when multiple items
                 AstCase* const casep = VN_CAST(itemp->aboveLoopp(), Case);
-                return casep && casep->caseMatches();
+                // Split to avoid short-circuit branch
+                if (!casep) return false;
+                return casep->caseMatches();
             }
             // Stop at statement boundaries
             if (VN_IS(parentp, NodeStmt)) return false;
