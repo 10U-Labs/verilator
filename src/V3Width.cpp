@@ -4998,10 +4998,14 @@ class WidthVisitor final : public VNVisitor {
             // V3Tagged handles transformation for case-matches patterns.
             // For RValue patterns (assignments), use normal visit(AstPattern*) flow.
             if (isInMatchesCondition(nodep)) {
-                if (AstPattern* const structPatp = VN_CAST(nodep->exprp(), Pattern)) {
+                if (AstPattern* const patp = VN_CAST(nodep->exprp(), Pattern)) {
+                    AstNodeDType* const skipDtp = memberp->subDTypep()->skipRefp();
                     if (AstNodeUOrStructDType* const structDtp
-                        = VN_CAST(memberp->subDTypep()->skipRefp(), NodeUOrStructDType)) {
-                        setStructPatternVarDtypes(structPatp, structDtp);
+                        = VN_CAST(skipDtp, NodeUOrStructDType)) {
+                        setStructPatternVarDtypes(patp, structDtp);
+                    } else if (AstUnpackArrayDType* const arrayDtp
+                               = VN_CAST(skipDtp, UnpackArrayDType)) {
+                        setArrayPatternVarDtypes(patp, arrayDtp->subDTypep());
                     } else {
                         iterateCheckTyped(nodep, "Tagged member value", nodep->exprp(),
                                           memberp->subDTypep(), BOTH);
@@ -5784,6 +5788,21 @@ class WidthVisitor final : public VNVisitor {
         iterateCheckBool(nodep, "If", nodep->condp(), BOTH);
     }
 
+    // Set dtypes on PatternVars inside array patterns. O(N) where N = pattern elements.
+    // Caller guarantees patp and elemDtp are valid (via VN_CAST checks).
+    void setArrayPatternVarDtypes(AstPattern* patp, AstNodeDType* elemDtp) {
+        patp->dtypep(elemDtp);
+        for (AstPatMember* itemp = VN_CAST(patp->itemsp(), PatMember); itemp;
+             itemp = VN_CAST(itemp->nextp(), PatMember)) {
+            itemp->dtypep(elemDtp);
+            itemp->didWidth(true);
+            if (AstPatternVar* const pvp = VN_CAST(itemp->lhssp(), PatternVar)) {
+                pvp->dtypep(elemDtp);
+                pvp->didWidth(true);
+            }
+        }
+    }
+
     // Set dtypes on PatternVars inside struct patterns without triggering visit(AstPattern*)
     // transformation. Used for case-matches where V3Tagged handles transformation later.
     void setStructPatternVarDtypes(AstPattern* patp, AstNodeUOrStructDType* structDtp) {
@@ -5825,10 +5844,14 @@ class WidthVisitor final : public VNVisitor {
                 // Nested tagged pattern - recurse
                 userIterateAndNext(tp, WidthVP{memberDtp, BOTH}.p());
             } else if (AstPattern* const nestedp = VN_CAST(itemp->lhssp(), Pattern)) {
-                // Nested struct pattern - recurse
-                if (AstNodeUOrStructDType* const nestedStructDtp
-                    = VN_CAST(memberDtp->skipRefp(), NodeUOrStructDType)) {
-                    setStructPatternVarDtypes(nestedp, nestedStructDtp);
+                // Nested pattern - recurse based on member type (struct or array)
+                AstNodeDType* const skipDtp = memberDtp->skipRefp();
+                if (AstNodeUOrStructDType* const structDtp
+                    = VN_CAST(skipDtp, NodeUOrStructDType)) {
+                    setStructPatternVarDtypes(nestedp, structDtp);
+                } else if (AstUnpackArrayDType* const arrayDtp
+                           = VN_CAST(skipDtp, UnpackArrayDType)) {
+                    setArrayPatternVarDtypes(nestedp, arrayDtp->subDTypep());
                 }
             }
         }
