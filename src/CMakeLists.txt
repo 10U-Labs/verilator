@@ -365,6 +365,7 @@ set(COMMON_SOURCES
     V3Waiver.cpp
     V3Width.cpp
     V3WidthCommit.cpp
+    V3WidthHelpers.cpp
     V3WidthSel.cpp
 )
 
