@@ -272,6 +272,8 @@ class WidthVisitor final : public VNVisitor {
     }
 
     // --- V3WidthHelpers.cpp (declarations for out-of-line methods) ---
+    void visit(AstIToRD* nodep) override;
+    void visit(AstISToRD* nodep) override;
     AstNode* userIterateSubtreeReturnEdits(AstNode* nodep, WidthVP* vup);
     void userIterate(AstNode* nodep, WidthVP* vup);
     void userIterateAndNext(AstNode* nodep, WidthVP* vup);
@@ -8111,125 +8113,7 @@ class WidthVisitor final : public VNVisitor {
 
     AstNode* iterateCheck(AstNode* parentp, const char* side, AstNode* underp, Determ determ,
                           Stage stage, AstNodeDType* expDTypep, ExtendRule extendRule,
-                          bool warnOn = true) {
-        // Perform data type check on underp, which is underneath parentp used for error reporting
-        // Returns the new underp
-        // Conversion to/from doubles and integers are before iterating.
-        UASSERT_OBJ(stage == FINAL, parentp, "Bad state to iterateCheck");
-        UASSERT_OBJ(underp, parentp, "Node has no child");
-        UASSERT_OBJ(underp->dtypep(), underp,
-                    "Node has no type");  // Perhaps forgot to do a prelim visit on it?
-        if (VN_IS(underp, NodeDType)) {  // Note the node itself, not node's data type
-            // Must be near top of these checks as underp->dtypep() will look normal
-            underp->v3error(ucfirst(parentp->prettyOperatorName())
-                            << " expected non-datatype " << side << " but "
-                            << underp->prettyNameQ() << " is a datatype.");
-        } else if (expDTypep == underp->dtypep()) {  // Perfect
-            underp = userIterateSubtreeReturnEdits(underp, WidthVP{expDTypep, FINAL}.p());
-        } else if (expDTypep->isDouble() && underp->isDouble()) {  // Also good
-            underp = userIterateSubtreeReturnEdits(underp, WidthVP{expDTypep, FINAL}.p());
-        } else if (expDTypep->isDouble() && !underp->isDouble()) {
-            AstNode* const oldp
-                = underp;  // Need FINAL on children; otherwise splice would block it
-            spliceCvtD(VN_AS(underp, NodeExpr));
-            underp = userIterateSubtreeReturnEdits(oldp, WidthVP{SELF, FINAL}.p());
-        } else if (!expDTypep->isDouble() && underp->isDouble()) {
-            AstNode* const oldp
-                = underp;  // Need FINAL on children; otherwise splice would block it
-            spliceCvtS(VN_AS(underp, NodeExpr), true, expDTypep->width());  // Round RHS
-            underp = userIterateSubtreeReturnEdits(oldp, WidthVP{SELF, FINAL}.p());
-        } else if (expDTypep->isString() && !underp->dtypep()->isString()) {
-            AstNode* const oldp
-                = underp;  // Need FINAL on children; otherwise splice would block it
-            spliceCvtString(VN_AS(underp, NodeExpr));
-            underp = userIterateSubtreeReturnEdits(oldp, WidthVP{SELF, FINAL}.p());
-        } else {
-            const AstBasicDType* const expBasicp = expDTypep->basicp();
-            const AstBasicDType* const underBasicp = underp->dtypep()->basicp();
-            if (expBasicp && underBasicp) {
-                if (const AstEnumDType* const expEnump
-                    = VN_CAST(expDTypep->skipRefToEnump(), EnumDType)) {
-                    const auto castable
-                        = AstNode::computeCastable(expEnump, underp->dtypep(), underp);
-                    if (castable != VCastable::SAMEISH && castable != VCastable::COMPATIBLE
-                        && castable != VCastable::ENUM_IMPLICIT && !VN_IS(underp, Cast)
-                        && !VN_IS(underp, CastDynamic) && !m_enumItemp
-                        && !parentp->fileline()->warnIsOff(V3ErrorCode::ENUMVALUE) && warnOn) {
-                        underp->v3warn(ENUMVALUE,
-                                       "Implicit conversion to enum "
-                                           << expDTypep->prettyDTypeNameQ() << " from "
-                                           << underp->dtypep()->prettyDTypeNameQ()
-                                           << " (IEEE 1800-2023 6.19.3)\n"
-                                           << parentp->warnMore()
-                                           << "... Suggest use enum's mnemonic, or static cast");
-                        // UINFOTREE(1, parentp->backp(), "", "back");
-                    }
-                }
-                AstNodeDType* subDTypep = expDTypep;
-                // We then iterate FINAL before width fixes, as if the under-operation
-                // is e.g. an ADD, the ADD will auto-adjust to the proper data type
-                // or if another operation e.g. ATOI will not.
-                if (determ == SELF) {
-                    underp = userIterateSubtreeReturnEdits(underp, WidthVP{SELF, FINAL}.p());
-                } else if (determ == ASSIGN) {
-                    // IEEE: Signedness is solely determined by the RHS
-                    // (underp), not by the LHS (expDTypep)
-                    if (underp->isSigned() != subDTypep->isSigned()
-                        || underp->width() != subDTypep->width()) {
-                        subDTypep = parentp->findLogicDType(
-                            std::max(subDTypep->width(), underp->width()),
-                            std::max(subDTypep->widthMin(), underp->widthMin()),
-                            VSigning::fromBool(underp->isSigned()));
-                        UINFO(9, "Assignment of opposite-signed RHS to LHS: " << parentp);
-                    }
-                    underp = userIterateSubtreeReturnEdits(underp, WidthVP{subDTypep, FINAL}.p());
-                } else {
-                    underp = userIterateSubtreeReturnEdits(underp, WidthVP{subDTypep, FINAL}.p());
-                }
-                // Note the check uses the expected size, not the child's subDTypep as we want the
-                // child node's width to end up correct for the assignment (etc)
-                widthCheckSized(parentp, side, VN_AS(underp, NodeExpr), expDTypep, extendRule,
-                                warnOn);
-            } else if (!VN_IS(parentp, Eq) && !VN_IS(parentp, Neq)
-                       && !VN_IS(expDTypep->skipRefp(), IfaceRefDType)
-                       && VN_IS(underp->dtypep()->skipRefp(), IfaceRefDType)) {
-                underp->v3error(ucfirst(parentp->prettyOperatorName())
-                                << " expected non-interface on " << side << " but "
-                                << underp->prettyNameQ() << " is an interface.");
-            } else if (const AstIfaceRefDType* expIfaceRefp
-                       = VN_CAST(expDTypep->skipRefp(), IfaceRefDType)) {
-                const AstIfaceRefDType* underIfaceRefp
-                    = VN_CAST(underp->dtypep()->skipRefp(), IfaceRefDType);
-                if (!underIfaceRefp) {
-                    underp->v3error(ucfirst(parentp->prettyOperatorName())
-                                    << " expected " << expIfaceRefp->ifaceViaCellp()->prettyNameQ()
-                                    << " interface on " << side << " but " << underp->prettyNameQ()
-                                    << " is not an interface.");
-                } else if (expIfaceRefp->ifaceViaCellp() != underIfaceRefp->ifaceViaCellp()) {
-                    underp->v3error(ucfirst(parentp->prettyOperatorName())
-                                    << " expected " << expIfaceRefp->ifaceViaCellp()->prettyNameQ()
-                                    << " interface on " << side << " but " << underp->prettyNameQ()
-                                    << " is a different interface ("
-                                    << underIfaceRefp->ifaceViaCellp()->prettyNameQ() << ").");
-                } else if (underIfaceRefp->modportp()
-                           && expIfaceRefp->modportp() != underIfaceRefp->modportp()) {
-                    underp->v3error(ucfirst(parentp->prettyOperatorName())
-                                    << " expected "
-                                    << (expIfaceRefp->modportp()
-                                            ? expIfaceRefp->modportp()->prettyNameQ()
-                                            : "no")
-                                    << " interface modport on " << side << " but got "
-                                    << underIfaceRefp->modportp()->prettyNameQ() << " modport.");
-                } else {
-                    underp = userIterateSubtreeReturnEdits(underp, WidthVP{expDTypep, FINAL}.p());
-                }
-            } else {
-                // Hope it just works out (perhaps a cast will deal with it)
-                underp = userIterateSubtreeReturnEdits(underp, WidthVP{expDTypep, FINAL}.p());
-            }
-        }
-        return underp;
-    }
+                          bool warnOn = true);
 
     void
     widthCheckSized(AstNode* parentp, const char* side,
@@ -8334,19 +8218,7 @@ class WidthVisitor final : public VNVisitor {
     //----------------------------------------------------------------------
     // SIGNED/DOUBLE METHODS
 
-    AstNodeExpr* checkCvtUS(AstNodeExpr* nodep, bool fatal) {
-        if (nodep && nodep->dtypep()->skipRefp()->isDouble()) {
-            if (fatal) {
-                nodep->v3error("Expected integral input to " << nodep->backp()->prettyTypeName());
-            } else {
-                nodep->v3warn(REALCVT,
-                              "Implicit conversion of real to integer; expected integral input to "
-                                  << nodep->backp()->prettyTypeName());
-            }
-            nodep = spliceCvtS(nodep, false, 32);
-        }
-        return nodep;
-    }
+    AstNodeExpr* checkCvtUS(AstNodeExpr* nodep, bool fatal);
 
     AstNodeExpr* spliceCvtD(AstNodeExpr* nodep) {
         // For integer used in REAL context, convert to real
@@ -8996,12 +8868,7 @@ class WidthVisitor final : public VNVisitor {
     //----------------------------------------------------------------------
     // METHODS - special type detection
 
-    void assertAtExpr(AstNode* nodep) {
-        if (VL_UNCOVERABLE(!m_vup)) {
-            nodep->v3fatalSrc("Unexpected '" << nodep->prettyTypeName() << "' expression under '"
-                                             << nodep->backp()->prettyTypeName() << "'");
-        }
-    }
+    void assertAtExpr(AstNode* nodep);
     void assertAtStatement(AstNode* nodep) {
         if (VL_UNCOVERABLE(m_vup && !m_vup->selfDtm())) {
             UINFO(1, "-: " << m_vup);
@@ -9062,6 +8929,146 @@ public:
     }
     ~WidthVisitor() override = default;
 };
+
+//######################################################################
+// Out-of-line method definitions (external linkage for cross-TU use by V3WidthHelpers.cpp)
+
+AstNode* WidthVisitor::iterateCheck(AstNode* parentp, const char* side, AstNode* underp,
+                                    Determ determ, Stage stage, AstNodeDType* expDTypep,
+                                    ExtendRule extendRule, bool warnOn) {
+    // Perform data type check on underp, which is underneath parentp used for error reporting
+    // Returns the new underp
+    // Conversion to/from doubles and integers are before iterating.
+    UASSERT_OBJ(stage == FINAL, parentp, "Bad state to iterateCheck");
+    UASSERT_OBJ(underp, parentp, "Node has no child");
+    UASSERT_OBJ(underp->dtypep(), underp,
+                "Node has no type");  // Perhaps forgot to do a prelim visit on it?
+    if (VN_IS(underp, NodeDType)) {  // Note the node itself, not node's data type
+        // Must be near top of these checks as underp->dtypep() will look normal
+        underp->v3error(ucfirst(parentp->prettyOperatorName())
+                        << " expected non-datatype " << side << " but " << underp->prettyNameQ()
+                        << " is a datatype.");
+    } else if (expDTypep == underp->dtypep()) {  // Perfect
+        underp = userIterateSubtreeReturnEdits(underp, WidthVP{expDTypep, FINAL}.p());
+    } else if (expDTypep->isDouble() && underp->isDouble()) {  // Also good
+        underp = userIterateSubtreeReturnEdits(underp, WidthVP{expDTypep, FINAL}.p());
+    } else if (expDTypep->isDouble() && !underp->isDouble()) {
+        AstNode* const oldp = underp;  // Need FINAL on children; otherwise splice would block it
+        spliceCvtD(VN_AS(underp, NodeExpr));
+        underp = userIterateSubtreeReturnEdits(oldp, WidthVP{SELF, FINAL}.p());
+    } else if (!expDTypep->isDouble() && underp->isDouble()) {
+        AstNode* const oldp = underp;  // Need FINAL on children; otherwise splice would block it
+        spliceCvtS(VN_AS(underp, NodeExpr), true, expDTypep->width());  // Round RHS
+        underp = userIterateSubtreeReturnEdits(oldp, WidthVP{SELF, FINAL}.p());
+    } else if (expDTypep->isString() && !underp->dtypep()->isString()) {
+        AstNode* const oldp = underp;  // Need FINAL on children; otherwise splice would block it
+        spliceCvtString(VN_AS(underp, NodeExpr));
+        underp = userIterateSubtreeReturnEdits(oldp, WidthVP{SELF, FINAL}.p());
+    } else {
+        const AstBasicDType* const expBasicp = expDTypep->basicp();
+        const AstBasicDType* const underBasicp = underp->dtypep()->basicp();
+        if (expBasicp && underBasicp) {
+            if (const AstEnumDType* const expEnump
+                = VN_CAST(expDTypep->skipRefToEnump(), EnumDType)) {
+                const auto castable = AstNode::computeCastable(expEnump, underp->dtypep(), underp);
+                if (castable != VCastable::SAMEISH && castable != VCastable::COMPATIBLE
+                    && castable != VCastable::ENUM_IMPLICIT && !VN_IS(underp, Cast)
+                    && !VN_IS(underp, CastDynamic) && !m_enumItemp
+                    && !parentp->fileline()->warnIsOff(V3ErrorCode::ENUMVALUE) && warnOn) {
+                    underp->v3warn(ENUMVALUE,
+                                   "Implicit conversion to enum "
+                                       << expDTypep->prettyDTypeNameQ() << " from "
+                                       << underp->dtypep()->prettyDTypeNameQ()
+                                       << " (IEEE 1800-2023 6.19.3)\n"
+                                       << parentp->warnMore()
+                                       << "... Suggest use enum's mnemonic, or static cast");
+                    // UINFOTREE(1, parentp->backp(), "", "back");
+                }
+            }
+            AstNodeDType* subDTypep = expDTypep;
+            // We then iterate FINAL before width fixes, as if the under-operation
+            // is e.g. an ADD, the ADD will auto-adjust to the proper data type
+            // or if another operation e.g. ATOI will not.
+            if (determ == SELF) {
+                underp = userIterateSubtreeReturnEdits(underp, WidthVP{SELF, FINAL}.p());
+            } else if (determ == ASSIGN) {
+                // IEEE: Signedness is solely determined by the RHS
+                // (underp), not by the LHS (expDTypep)
+                if (underp->isSigned() != subDTypep->isSigned()
+                    || underp->width() != subDTypep->width()) {
+                    subDTypep = parentp->findLogicDType(
+                        std::max(subDTypep->width(), underp->width()),
+                        std::max(subDTypep->widthMin(), underp->widthMin()),
+                        VSigning::fromBool(underp->isSigned()));
+                    UINFO(9, "Assignment of opposite-signed RHS to LHS: " << parentp);
+                }
+                underp = userIterateSubtreeReturnEdits(underp, WidthVP{subDTypep, FINAL}.p());
+            } else {
+                underp = userIterateSubtreeReturnEdits(underp, WidthVP{subDTypep, FINAL}.p());
+            }
+            // Note the check uses the expected size, not the child's subDTypep as we want the
+            // child node's width to end up correct for the assignment (etc)
+            widthCheckSized(parentp, side, VN_AS(underp, NodeExpr), expDTypep, extendRule, warnOn);
+        } else if (!VN_IS(parentp, Eq) && !VN_IS(parentp, Neq)
+                   && !VN_IS(expDTypep->skipRefp(), IfaceRefDType)
+                   && VN_IS(underp->dtypep()->skipRefp(), IfaceRefDType)) {
+            underp->v3error(ucfirst(parentp->prettyOperatorName())
+                            << " expected non-interface on " << side << " but "
+                            << underp->prettyNameQ() << " is an interface.");
+        } else if (const AstIfaceRefDType* expIfaceRefp
+                   = VN_CAST(expDTypep->skipRefp(), IfaceRefDType)) {
+            const AstIfaceRefDType* underIfaceRefp
+                = VN_CAST(underp->dtypep()->skipRefp(), IfaceRefDType);
+            if (!underIfaceRefp) {
+                underp->v3error(ucfirst(parentp->prettyOperatorName())
+                                << " expected " << expIfaceRefp->ifaceViaCellp()->prettyNameQ()
+                                << " interface on " << side << " but " << underp->prettyNameQ()
+                                << " is not an interface.");
+            } else if (expIfaceRefp->ifaceViaCellp() != underIfaceRefp->ifaceViaCellp()) {
+                underp->v3error(ucfirst(parentp->prettyOperatorName())
+                                << " expected " << expIfaceRefp->ifaceViaCellp()->prettyNameQ()
+                                << " interface on " << side << " but " << underp->prettyNameQ()
+                                << " is a different interface ("
+                                << underIfaceRefp->ifaceViaCellp()->prettyNameQ() << ").");
+            } else if (underIfaceRefp->modportp()
+                       && expIfaceRefp->modportp() != underIfaceRefp->modportp()) {
+                underp->v3error(
+                    ucfirst(parentp->prettyOperatorName())
+                    << " expected "
+                    << (expIfaceRefp->modportp() ? expIfaceRefp->modportp()->prettyNameQ() : "no")
+                    << " interface modport on " << side << " but got "
+                    << underIfaceRefp->modportp()->prettyNameQ() << " modport.");
+            } else {
+                underp = userIterateSubtreeReturnEdits(underp, WidthVP{expDTypep, FINAL}.p());
+            }
+        } else {
+            // Hope it just works out (perhaps a cast will deal with it)
+            underp = userIterateSubtreeReturnEdits(underp, WidthVP{expDTypep, FINAL}.p());
+        }
+    }
+    return underp;
+}
+
+AstNodeExpr* WidthVisitor::checkCvtUS(AstNodeExpr* nodep, bool fatal) {
+    if (nodep && nodep->dtypep()->skipRefp()->isDouble()) {
+        if (fatal) {
+            nodep->v3error("Expected integral input to " << nodep->backp()->prettyTypeName());
+        } else {
+            nodep->v3warn(REALCVT,
+                          "Implicit conversion of real to integer; expected integral input to "
+                              << nodep->backp()->prettyTypeName());
+        }
+        nodep = spliceCvtS(nodep, false, 32);
+    }
+    return nodep;
+}
+
+void WidthVisitor::assertAtExpr(AstNode* nodep) {
+    if (VL_UNCOVERABLE(!m_vup)) {
+        nodep->v3fatalSrc("Unexpected '" << nodep->prettyTypeName() << "' expression under '"
+                                         << nodep->backp()->prettyTypeName() << "'");
+    }
+}
 
 //######################################################################
 // Width class functions
