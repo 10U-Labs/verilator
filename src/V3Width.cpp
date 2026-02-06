@@ -270,6 +270,52 @@ class WidthVisitor final : public VNVisitor {
                 nodep->findLogicDType(unpackBits, unpackMinBits, VSigning::UNSIGNED)});
         }
     }
+
+    // --- V3WidthHelpers.cpp (declarations for out-of-line methods) ---
+    AstNode* userIterateSubtreeReturnEdits(AstNode* nodep, WidthVP* vup);
+    void userIterate(AstNode* nodep, WidthVP* vup);
+    void userIterateAndNext(AstNode* nodep, WidthVP* vup);
+    void userIterateChildren(AstNode* nodep, WidthVP* vup);
+    void userIterateChildrenBackwardsConst(AstNode* nodep, WidthVP* vup);
+    void iterateCheckFileDesc(AstNode* parentp, AstNode* underp, Stage stage);
+    void iterateCheckReal(AstNode* parentp, const char* side, AstNode* underp, Stage stage);
+    void iterateCheckSigned8(AstNode* parentp, const char* side, AstNode* underp, Stage stage);
+    void iterateCheckSigned32(AstNode* parentp, const char* side, AstNode* underp, Stage stage);
+    void iterateCheckUInt32(AstNode* parentp, const char* side, AstNode* underp, Stage stage);
+    void iterateCheckDelay(AstNode* parentp, const char* side, AstNode* underp, Stage stage);
+    void iterateCheckTypedSelfPrelim(AstNode* parentp, const char* side, AstNode* underp,
+                                     AstNodeDType* expDTypep, Stage stage);
+    void iterateCheckIntegralSelf(AstNode* parentp, const char* side, AstNode* underp,
+                                  Determ determ, Stage stage);
+    void iterateCheckSelf(AstNode* parentp, const char* side, AstNode* underp, Determ determ,
+                          Stage stage);
+    void iterateCheckSizedSelf(AstNode* parentp, const char* side, AstNode* underp, Determ determ,
+                               Stage stage);
+    void visit_Or_Lu64(AstNodeUniop* nodep);
+    void visit_Os32_Lr(AstNodeUniop* nodep);
+    void visit_Ou64_Lr(AstNodeUniop* nodep);
+    AstPackage* getItemPackage(AstNode* pkgItemp);
+    const AstClass* containingClass(AstNode* nodep);
+    static bool areSameSize(AstUnpackArrayDType* dtypep0, AstUnpackArrayDType* dtypep1);
+    void makeOpenArrayShell(AstNodeFTaskRef* nodep);
+    bool markHasOpenArray(AstNodeFTask* nodep);
+    bool hasOpenArrayDTypeRecurse(AstNodeDType* nodep);
+    AstVar* memberSelClocking(AstMemberSel* nodep, AstClocking* clockingp);
+    // Inline helpers (V3WidthCheck.cpp not yet in build)
+    void iterateCheckTyped(AstNode* parentp, const char* side, AstNode* underp,
+                           AstNodeDType* expDTypep, Stage stage) {
+        if (stage & PRELIM) {
+            underp = userIterateSubtreeReturnEdits(underp, WidthVP{expDTypep, PRELIM}.p());
+        }
+        if (stage & FINAL) {
+            underp = iterateCheck(parentp, side, underp, SELF, FINAL, expDTypep, EXTEND_EXP);
+        }
+        (void)underp;
+    }
+    void iterateCheckString(AstNode* parentp, const char* side, AstNode* underp, Stage stage) {
+        iterateCheckTyped(parentp, side, underp, parentp->findStringDType(), stage);
+    }
+
     // VISITORS
     //   Naming:  width_O{outputtype}_L{lhstype}_R{rhstype}_W{widthing}_S{signing}
     //          Where type:
