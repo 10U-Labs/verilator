@@ -68,8 +68,7 @@ void WidthVisitor::iterateCheckFileDesc(AstNode* parentp, AstNode* underp, Stage
     // underp may change as a result of replacement
     underp = userIterateSubtreeReturnEdits(underp, WidthVP{SELF, PRELIM}.p());
     AstNodeDType* const expDTypep = underp->findUInt32DType();
-    underp
-        = iterateCheck(parentp, "file_descriptor", underp, SELF, FINAL, expDTypep, EXTEND_EXP);
+    underp = iterateCheck(parentp, "file_descriptor", underp, SELF, FINAL, expDTypep, EXTEND_EXP);
     (void)underp;  // cppcheck
 }
 void WidthVisitor::iterateCheckReal(AstNode* parentp, const char* side, AstNode* underp,
@@ -113,14 +112,12 @@ void WidthVisitor::iterateCheckDelay(AstNode* parentp, const char* side, AstNode
             underp->fileline(newFl);
             expDTypep = parentp->findLogicDType(64, 64, VSigning::UNSIGNED);
         }
-        underp
-            = iterateCheck(parentp, side, underp, SELF, FINAL, expDTypep, EXTEND_EXP, false);
+        underp = iterateCheck(parentp, side, underp, SELF, FINAL, expDTypep, EXTEND_EXP, false);
     }
     (void)underp;  // cppcheck
 }
-void WidthVisitor::iterateCheckTypedSelfPrelim(AstNode* parentp, const char* side,
-                                               AstNode* underp, AstNodeDType* expDTypep,
-                                               Stage stage) {
+void WidthVisitor::iterateCheckTypedSelfPrelim(AstNode* parentp, const char* side, AstNode* underp,
+                                               AstNodeDType* expDTypep, Stage stage) {
     // underp may change as a result of replacement
     if (stage & PRELIM) {
         underp = userIterateSubtreeReturnEdits(underp, WidthVP{SELF, PRELIM}.p());
@@ -139,8 +136,7 @@ void WidthVisitor::iterateCheckIntegralSelf(AstNode* parentp, const char* side, 
     if (stage & PRELIM) {
         underp = userIterateSubtreeReturnEdits(underp, WidthVP{SELF, PRELIM}.p());
     }
-    underp
-        = VN_IS(underp, NodeExpr) ? checkCvtUS(VN_AS(underp, NodeExpr), true) : underp;
+    underp = VN_IS(underp, NodeExpr) ? checkCvtUS(VN_AS(underp, NodeExpr), true) : underp;
     AstNodeDType* const expDTypep = underp->dtypep();
     underp = iterateCheck(parentp, side, underp, SELF, FINAL, expDTypep, EXTEND_EXP);
     (void)underp;  // cppcheck
@@ -156,8 +152,7 @@ void WidthVisitor::iterateCheckSelf(AstNode* parentp, const char* side, AstNode*
     if (stage & PRELIM) {
         underp = userIterateSubtreeReturnEdits(underp, WidthVP{SELF, PRELIM}.p());
     }
-    underp
-        = VN_IS(underp, NodeExpr) ? checkCvtUS(VN_AS(underp, NodeExpr), false) : underp;
+    underp = VN_IS(underp, NodeExpr) ? checkCvtUS(VN_AS(underp, NodeExpr), false) : underp;
     AstNodeDType* const expDTypep = underp->dtypep();
     underp = iterateCheck(parentp, side, underp, SELF, FINAL, expDTypep, EXTEND_EXP);
     (void)underp;  // cppcheck
@@ -209,8 +204,7 @@ void WidthVisitor::visit(AstIToRD* nodep) {
         // Self-determined operand (TODO check if numeric type)
         userIterateAndNext(nodep->lhsp(), WidthVP{SELF, PRELIM}.p());
         if (nodep->lhsp()->isSigned()) {
-            nodep->replaceWith(
-                new AstISToRD{nodep->fileline(), nodep->lhsp()->unlinkFrBack()});
+            nodep->replaceWith(new AstISToRD{nodep->fileline(), nodep->lhsp()->unlinkFrBack()});
             VL_DO_DANGLING(nodep->deleteTree(), nodep);
         }
     }
@@ -339,9 +333,8 @@ AstVar* WidthVisitor::memberSelClocking(AstMemberSel* nodep, AstClocking* clocki
         }
     }
     const string suggest = speller.bestCandidateMsg(nodep->prettyName());
-    nodep->v3error(
-        "Member " << nodep->prettyNameQ() << " not found in clocking block "
-                  << clockingp->prettyNameQ() << "\n"
-                  << (suggest.empty() ? "" : nodep->fileline()->warnMore() + suggest));
+    nodep->v3error("Member " << nodep->prettyNameQ() << " not found in clocking block "
+                             << clockingp->prettyNameQ() << "\n"
+                             << (suggest.empty() ? "" : nodep->fileline()->warnMore() + suggest));
     return nullptr;  // Caller handles error
 }

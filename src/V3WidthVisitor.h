@@ -22,8 +22,6 @@
 
 #include "V3PchAstNoMT.h"  // VL_MT_DISABLED_CODE_UNIT
 
-#include "V3Width.h"
-
 #include "V3Ast.h"
 #include "V3Begin.h"
 #include "V3Const.h"
@@ -36,6 +34,7 @@
 #include "V3String.h"
 #include "V3Task.h"
 #include "V3UniqueNames.h"
+#include "V3Width.h"
 #include "V3WidthCommit.h"
 
 //######################################################################
@@ -714,8 +713,7 @@ class WidthVisitor final : public VNVisitor {
     void methodCallLValueRecurse(AstMethodCall* nodep, AstNode* childp, const VAccess& access);
     AstNodeExpr* methodArg(AstMethodCall* nodep, int arg);
     AstNodeExpr* methodCallAssocIndexExpr(AstMethodCall* nodep, AstAssocArrayDType* adtypep);
-    AstNodeExpr* methodCallWildcardIndexExpr(AstMethodCall* nodep,
-                                             AstWildcardArrayDType* adtypep);
+    AstNodeExpr* methodCallWildcardIndexExpr(AstMethodCall* nodep, AstWildcardArrayDType* adtypep);
 
     // --- V3WidthHelpers.cpp ---
     AstNode* userIterateSubtreeReturnEdits(AstNode* nodep, WidthVP* vup);
