@@ -5135,6 +5135,7 @@ class WidthVisitor final : public VNVisitor {
         for (AstMemberDType* mp = unionDtp->membersp(); mp; mp = VN_AS(mp->nextp(), MemberDType)) {
             if (mp->name() == name) return mp;
         }
+        v3fatalSrc("Tagged union member '" << name << "' not found");
         return nullptr;
     }
 
@@ -5143,12 +5144,8 @@ class WidthVisitor final : public VNVisitor {
     void updateTaggedExprPattern(AstTaggedExpr* tagExprp, AstUnionDType* unionDtp,
                                  AstNodeDType* memberDtp, UpdateFunc updateVar) {
         tagExprp->dtypep(unionDtp);
-        if (AstPatternVar* const patVarp = VN_CAST(tagExprp->exprp(), PatternVar)) {
-            updateVar(patVarp->name(), memberDtp);
-            patVarp->dtypep(memberDtp);
-            patVarp->didWidth(true);
-            return;
-        }
+        // Grammar only creates AstTaggedExpr with Pattern/Const/ParseRef children,
+        // never PatternVar (that goes through AstTaggedPattern instead)
         AstPattern* const nestedPatp = VN_CAST(tagExprp->exprp(), Pattern);
         if (!nestedPatp) return;
         AstNodeUOrStructDType* const structDtp = VN_CAST(memberDtp, NodeUOrStructDType);
@@ -5349,12 +5346,6 @@ class WidthVisitor final : public VNVisitor {
                             }
                         }
                     }
-                    // Handle direct PatternVar binding (e.g., tagged Foo .x)
-                    if (AstPatternVar* const patVarp = VN_CAST(tagExprp->exprp(), PatternVar)) {
-                        updatePatternVarType(patVarp->name(), memberDtp);
-                        patVarp->dtypep(memberDtp);
-                        patVarp->didWidth(true);
-                    }
                     // Handle nested TaggedExpr (e.g., tagged Outer (tagged Inner ...))
                     if (AstTaggedExpr* const nestedTagExprp
                         = VN_CAST(tagExprp->exprp(), TaggedExpr)) {
@@ -5367,13 +5358,6 @@ class WidthVisitor final : public VNVisitor {
                             if (nestedMemberp) {
                                 AstNodeDType* const nestedMemberDtp
                                     = nestedMemberp->subDTypep()->skipRefp();
-                                // Handle nested PatternVar
-                                if (AstPatternVar* const pVarp
-                                    = VN_CAST(nestedTagExprp->exprp(), PatternVar)) {
-                                    updatePatternVarType(pVarp->name(), nestedMemberDtp);
-                                    pVarp->dtypep(nestedMemberDtp);
-                                    pVarp->didWidth(true);
-                                }
                                 // Handle nested struct pattern
                                 if (AstPattern* const nestedPatp
                                     = VN_CAST(nestedTagExprp->exprp(), Pattern)) {
@@ -6200,10 +6184,6 @@ class WidthVisitor final : public VNVisitor {
             = VN_CAST(m_memberMap.findMember(unionp, tagExprp->name()), MemberDType);
         if (!memp) return;
         AstNodeDType* const memberDtp = memp->subDTypep()->skipRefp();
-        // Handle direct PatternVar binding
-        if (AstPatternVar* const patVarp = VN_CAST(tagExprp->exprp(), PatternVar)) {
-            updatePatVarFromStmts(itemp, patVarp->name(), memberDtp);
-        }
         // Handle struct pattern
         if (AstPattern* const patternp = VN_CAST(tagExprp->exprp(), Pattern)) {
             AstNodeUOrStructDType* const structDtp = VN_CAST(memberDtp, NodeUOrStructDType);
