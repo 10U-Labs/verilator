@@ -176,7 +176,7 @@ public:
     void displayArg(AstNode* dispp, AstNode** elistp, bool isScan, const string& vfmt, bool ignore,
                     char fmtLetter);
 
-    bool emitSimpleOk(AstNodeBEmitExpr* nodep);
+    bool emitSimpleOk(AstNodeExpr* nodep);
     void emitIQW(const AstNode* nodep) {
         // See "Type letters" in verilated.h
         // Other abbrevs: "C"har, "S"hort, "F"loat, "D"ouble, stri"N"g, "R"=queue, "U"npacked

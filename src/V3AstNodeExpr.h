@@ -57,6 +57,10 @@ public:
     virtual string emitVerilog() { V3ERROR_NA_RETURN(""); }
     virtual string emitSMT() const { return ""; };
     virtual bool cleanOut() const { V3ERROR_NA_RETURN(true); }
+    // For documentation on emitC format see EmitCFunc::emitOpName
+    virtual string emitC() { V3ERROR_NA_RETURN(""); }
+    virtual string emitSimpleOperator() { return ""; }  // "" means not ok to use
+    virtual bool emitCheckMaxWords() { return false; }  // Check VL_MULS_MAX_WORDS
     // Someday we will generically support data types on every expr node
     // Until then isOpaque indicates we shouldn't constant optimize this node type
     bool isOpaque() const { return VN_IS(this, CvtPackString); }
@@ -67,21 +71,7 @@ public:
     // broken()
     virtual const char* widthMismatch() const VL_MT_STABLE { return nullptr; }
 };
-class AstNodeBEmitExpr VL_NOT_FINAL : public AstNodeExpr {
-    // Expression nodes that produce C++ code via emitC().
-    // Nodes transformed away before V3EmitC inherit from AstNodeExpr directly.
-protected:
-    AstNodeBEmitExpr(VNType t, FileLine* fl)
-        : AstNodeExpr{t, fl} {}
-
-public:
-    ASTGEN_MEMBERS_AstNodeBEmitExpr;
-    // For documentation on emitC format see EmitCFunc::emitOpName
-    virtual string emitC() { V3ERROR_NA_RETURN(""); }
-    virtual string emitSimpleOperator() { return ""; }  // "" means not ok to use
-    virtual bool emitCheckMaxWords() { return false; }  // Check VL_MULS_MAX_WORDS
-};
-class AstNodeBiop VL_NOT_FINAL : public AstNodeBEmitExpr {
+class AstNodeBiop VL_NOT_FINAL : public AstNodeExpr {
     // Binary expression
     // @astgen op1 := lhsp : AstNodeExpr
     // @astgen op2 := rhsp : AstNodeExpr
@@ -89,7 +79,7 @@ class AstNodeBiop VL_NOT_FINAL : public AstNodeBEmitExpr {
 
 protected:
     AstNodeBiop(VNType t, FileLine* fl, AstNodeExpr* lhsp, AstNodeExpr* rhsp)
-        : AstNodeBEmitExpr{t, fl} {
+        : AstNodeExpr{t, fl} {
         this->lhsp(lhsp);
         this->rhsp(rhsp);
     }
@@ -188,7 +178,7 @@ public:
     int instrCount() const override { return INSTR_COUNT_DBL_TRIG; }
     bool doubleFlavor() const override { return true; }
 };
-class AstNodeQuadop VL_NOT_FINAL : public AstNodeBEmitExpr {
+class AstNodeQuadop VL_NOT_FINAL : public AstNodeExpr {
     // 4-ary expression
     // @astgen op1 := lhsp : AstNodeExpr
     // @astgen op2 := rhsp : AstNodeExpr
@@ -199,7 +189,7 @@ class AstNodeQuadop VL_NOT_FINAL : public AstNodeBEmitExpr {
 protected:
     AstNodeQuadop(VNType t, FileLine* fl, AstNodeExpr* lhsp, AstNodeExpr* rhsp, AstNodeExpr* thsp,
                   AstNodeExpr* fhsp)
-        : AstNodeBEmitExpr{t, fl} {
+        : AstNodeExpr{t, fl} {
         this->lhsp(lhsp);
         this->rhsp(rhsp);
         this->thsp(thsp);
@@ -231,17 +221,17 @@ private:
         return lhsp()->isPure() && rhsp()->isPure() && thsp()->isPure() && fhsp()->isPure();
     }
 };
-class AstNodeTermop VL_NOT_FINAL : public AstNodeBEmitExpr {
+class AstNodeTermop VL_NOT_FINAL : public AstNodeExpr {
     // Terminal operator -- an operator with no "inputs"
 protected:
     AstNodeTermop(VNType t, FileLine* fl)
-        : AstNodeBEmitExpr{t, fl} {}
+        : AstNodeExpr{t, fl} {}
 
 public:
     ASTGEN_MEMBERS_AstNodeTermop;
     bool isSystemFunc() const override { return true; }
 };
-class AstNodeTriop VL_NOT_FINAL : public AstNodeBEmitExpr {
+class AstNodeTriop VL_NOT_FINAL : public AstNodeExpr {
     // Ternary expression
     // @astgen op1 := lhsp : AstNodeExpr
     // @astgen op2 := rhsp : AstNodeExpr
@@ -250,7 +240,7 @@ class AstNodeTriop VL_NOT_FINAL : public AstNodeBEmitExpr {
 
 protected:
     AstNodeTriop(VNType t, FileLine* fl, AstNodeExpr* lhsp, AstNodeExpr* rhsp, AstNodeExpr* thsp)
-        : AstNodeBEmitExpr{t, fl} {
+        : AstNodeExpr{t, fl} {
         this->lhsp(lhsp);
         this->rhsp(rhsp);
         this->thsp(thsp);
@@ -303,14 +293,14 @@ public:
         V3ERROR_NA;
     }
 };
-class AstNodeUniop VL_NOT_FINAL : public AstNodeBEmitExpr {
+class AstNodeUniop VL_NOT_FINAL : public AstNodeExpr {
     // Unary expression
     // @astgen op1 := lhsp : AstNodeExpr
     VIsCached m_purity;  // Pure state
 
 protected:
     AstNodeUniop(VNType t, FileLine* fl, AstNodeExpr* lhsp)
-        : AstNodeBEmitExpr{t, fl} {
+        : AstNodeExpr{t, fl} {
         dtypeFrom(lhsp);
         this->lhsp(lhsp);
     }
@@ -2382,7 +2372,7 @@ public:
     }
     ASTGEN_MEMBERS_AstWithParse;
 };
-class AstCvtUnpackedToQueue final : public AstNodeBEmitExpr {
+class AstCvtUnpackedToQueue final : public AstNodeExpr {
     // Cast from unpacked array to dynamic/unpacked queue data type
     // @astgen op1 := fromp : AstNodeExpr
 public:
@@ -2398,7 +2388,7 @@ public:
     string emitC() override { return "VL_CVT_UNPACK_TO_Q(%P, %li)"; }
     bool cleanOut() const override { return true; }
 };
-class AstRand final : public AstNodeBEmitExpr {
+class AstRand final : public AstNodeExpr {
     // $random/$random(seed) or $urandom/$urandom(seed)
     // Return a random number, based upon width()
     // @astgen op1 := seedp : Optional[AstNode]
@@ -2446,7 +2436,7 @@ public:
     }
     bool urandom() const { return m_urandom; }
 };
-class AstRandRNG final : public AstNodeBEmitExpr {
+class AstRandRNG final : public AstNodeExpr {
     // Random used in a class using VlRNG
     // Return a random number, based upon width()
 public:
@@ -2461,7 +2451,7 @@ public:
     }
     bool cleanOut() const override { return false; }
 };
-class AstStackTraceF final : public AstNodeBEmitExpr {
+class AstStackTraceF final : public AstNodeExpr {
     // $stacktrace used as function
 public:
     explicit AstStackTraceF(FileLine* fl)
@@ -2474,7 +2464,7 @@ public:
     bool isUnlikely() const override { return true; }
     bool cleanOut() const override { return true; }
 };
-class AstSystemF final : public AstNodeBEmitExpr {
+class AstSystemF final : public AstNodeExpr {
     // $system used as function
     // @astgen op1 := lhsp : AstNode
 public:
@@ -2488,7 +2478,7 @@ public:
     bool isUnlikely() const override { return true; }
     bool cleanOut() const override { return true; }
 };
-class AstTestPlusArgs final : public AstNodeBEmitExpr {
+class AstTestPlusArgs final : public AstNodeExpr {
     // Search expression. If nullptr then this is a $test$plusargs instead of $value$plusargs.
     // @astgen op1 := searchp : Optional[AstNode]
 public:
@@ -2505,7 +2495,7 @@ public:
     bool cleanOut() const override { return true; }
     bool sameNode(const AstNode* /*samep*/) const override { return true; }
 };
-class AstThisRef final : public AstNodeBEmitExpr {
+class AstThisRef final : public AstNodeExpr {
     // Reference to 'this'.
     // @astgen op1 := childDTypep : Optional[AstClassRefDType] // dtype of the node
 public:
