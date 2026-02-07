@@ -42,4 +42,4 @@
                                             : ... note: In instance 't'
   278 |       result = a;
       |              ^
-%Error: Exiting due to 10 warning(s)
+%Error: Exiting due to

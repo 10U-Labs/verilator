@@ -26,4 +26,4 @@
   180 |     at = tagged Arr '{10, 20, 30, 40};
       |                     ^~
         ... See the manual at https://verilator.org/verilator_doc.html?v=latest for more assistance.
-%Error: Exiting due to 1 error(s), 5 warning(s)
+%Error: Exiting due to

@@ -5200,6 +5200,19 @@ class WidthVisitor final : public VNVisitor {
             if (!memberp) return;
             updateTaggedExprPattern(tagExprp, unionDtp, memberp->subDTypep()->skipRefp(),
                                     updateVar);
+        } else if (AstTaggedPattern* const tagPatp = VN_CAST(lhssp, TaggedPattern)) {
+            // Nested tagged pattern: "tagged Value .y" inside struct pattern
+            AstNodeDType* const fieldDtp = fieldp->subDTypep()->skipRefp();
+            AstUnionDType* const unionDtp = VN_CAST(fieldDtp, UnionDType);
+            if (!unionDtp || !unionDtp->isTagged()) return;
+            AstMemberDType* const memberp = findTaggedUnionMember(unionDtp, tagPatp->name());
+            if (!memberp) return;
+            tagPatp->dtypep(unionDtp);
+            if (AstPatternVar* const patVarp = VN_CAST(tagPatp->patternp(), PatternVar)) {
+                updateVar(patVarp->name(), memberp->subDTypep());
+                patVarp->dtypep(memberp->subDTypep());
+                patVarp->didWidth(true);
+            }
         }
     }
     // Helper: Process all PatMembers in a struct Pattern (O(n) with O(1) lookups)

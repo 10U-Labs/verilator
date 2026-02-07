@@ -330,7 +330,7 @@ class TaggedVisitor final : public VNVisitor {
                                   std::vector<NestedTagCheck>* tagChecks = nullptr) {
         // Simple pattern variable
         if (AstPatternVar* const pvp = VN_CAST(nodep, PatternVar)) {
-            out.push_back({pvp->name(), basePath, pvp->dtypep()});
+            out.push_back({pvp->name(), basePath, baseDtp ? baseDtp : pvp->dtypep()});
             return;
         }
 
