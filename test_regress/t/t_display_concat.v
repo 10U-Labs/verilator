@@ -11,8 +11,6 @@ module t(/*AUTOARG*/
    input clk;
 
    int   cyc = 0;
-   always @ (posedge clk) ++cyc;
-
    reg [15 : 0] t2;
 
    always@(posedge clk) begin
@@ -28,5 +26,37 @@ module t(/*AUTOARG*/
          $write("*-* All Finished *-*\n");
          $finish(32'd0);
       end
+      // verilator lint_off BLKSEQ
+      //
+      // Moved ++cyc from a separate always block into this one to fix a
+      // cross-block race condition in vltmt (multithreaded) mode.
+      //
+      // Root cause: When ++cyc was in its own always @(posedge clk) block,
+      // V3OrderGraphBuilder (src/V3OrderGraphBuilder.cpp:242-290) created
+      // no dependency path between the two blocks. For clocked logic,
+      // writes produce Logic->VarStd edges and reads produce Logic->VarPre
+      // edges — both outgoing from their respective logic vertices. With
+      // no path from the writer block to the reader block, they landed in
+      // separate mtasks with no ordering guarantee.
+      //
+      // The FixDataHazards pass (src/V3OrderParallel.cpp:1780-2057) was
+      // designed to catch these cases, but it only tracks writers via
+      // VarStd.inEdges() — reader tracking was implemented but then
+      // reverted due to performance regression (verilator/verilator#3360).
+      // Without reader tracking, the reader block was invisible to
+      // FixDataHazards, so no hazard edge was added.
+      //
+      // The result: thread scheduling could cause this block to see
+      // pre-increment cyc at one edge and post-increment cyc at the next,
+      // skipping a value entirely (e.g., never observing cyc==2), causing
+      // the NBA t2<=16'habcd to never fire and $display to read t2==0.
+      //
+      // Fix: merge ++cyc into this block (after the if-else chain so cycle
+      // numbering is preserved). This eliminates the cross-block data
+      // dependency entirely — both the write and read of cyc are now in
+      // the same logic vertex, guaranteed to be in the same mtask.
+      //
+      // verilator lint_on BLKSEQ
+      ++cyc;
    end
 endmodule
