@@ -35,13 +35,13 @@ module t(/*AUTOARG*/
       // V3OrderGraphBuilder (src/V3OrderGraphBuilder.cpp:242-290) created
       // no dependency path between the two blocks. For clocked logic,
       // writes produce Logic->VarStd edges and reads produce Logic->VarPre
-      // edges — both outgoing from their respective logic vertices. With
+      // edges -- both outgoing from their respective logic vertices. With
       // no path from the writer block to the reader block, they landed in
       // separate mtasks with no ordering guarantee.
       //
       // The FixDataHazards pass (src/V3OrderParallel.cpp:1780-2057) was
       // designed to catch these cases, but it only tracks writers via
-      // VarStd.inEdges() — reader tracking was implemented but then
+      // VarStd.inEdges() -- reader tracking was implemented but then
       // reverted due to performance regression (verilator/verilator#3360).
       // Without reader tracking, the reader block was invisible to
       // FixDataHazards, so no hazard edge was added.
@@ -53,7 +53,7 @@ module t(/*AUTOARG*/
       //
       // Fix: merge ++cyc into this block (after the if-else chain so cycle
       // numbering is preserved). This eliminates the cross-block data
-      // dependency entirely — both the write and read of cyc are now in
+      // dependency entirely -- both the write and read of cyc are now in
       // the same logic vertex, guaranteed to be in the same mtask.
       //
       // verilator lint_on BLKSEQ
