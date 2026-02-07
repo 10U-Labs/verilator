@@ -210,6 +210,8 @@ public:
     string argTypes() const { return m_argTypes; }
     void argTypes(const string& str) { m_argTypes = str; }
 
+    bool isGateOptimizable() const override { return false; }
+    bool cleanOut() const override { return true; }
     bool superReference() const { return m_superReference; }
     void superReference(bool flag) { m_superReference = flag; }
 };
@@ -1938,6 +1940,7 @@ public:
     bool isGateOptimizable() const override { return false; }
     bool isPredictOptimizable() const override { return false; }
     bool isPure() override { return !seedp(); }
+    bool isSystemFunc() const override { return true; }
     int instrCount() const override { return INSTR_COUNT_PLI; }
     bool sameNode(const AstNode* /*samep*/) const override { return true; }
     bool combinable(const AstRand* samep) const {
@@ -1954,11 +1957,16 @@ public:
         dtypep(dtp);
     }
     ASTGEN_MEMBERS_AstRandRNG;
+    string emitVerilog() override { return "%f$rngrandom()"; }
     string emitC() override {
         return isWide() ? "VL_RANDOM_RNG_%nq(__Vm_rng, %nw, %P)"  //
                         : "VL_RANDOM_RNG_%nq(__Vm_rng)";
     }
     bool cleanOut() const override { return false; }
+    bool isGateOptimizable() const override { return false; }
+    bool isPredictOptimizable() const override { return false; }
+    bool isSystemFunc() const override { return true; }
+    int instrCount() const override { return INSTR_COUNT_PLI; }
 };
 class AstRising final : public AstNodeExpr {
     // Verilog $rising_gclk
@@ -2244,6 +2252,11 @@ public:
         dtypeSetString();
     }
     ASTGEN_MEMBERS_AstStackTraceF;
+    string verilogKwd() const override { return "$stacktrace"; }
+    string emitVerilog() override { return verilogKwd(); }
+    string emitC() override { return "VL_STACKTRACE_N()"; }
+    bool isGateOptimizable() const override { return false; }
+    bool isPredictOptimizable() const override { return false; }
     bool isPure() override { return false; }
     bool isOutputter() override { return true; }
     bool isUnlikely() const override { return true; }
@@ -2318,10 +2331,16 @@ public:
         this->lhsp(lhsp);
     }
     ASTGEN_MEMBERS_AstSystemF;
+    string verilogKwd() const override { return "$system"; }
+    string emitVerilog() override { return verilogKwd(); }
+    string emitC() override { return "VL_SYSTEM_%nq(%lw, %P)"; }
+    bool isGateOptimizable() const override { return false; }
+    bool isPredictOptimizable() const override { return false; }
     bool isPure() override { return false; }
     bool isOutputter() override { return true; }
     bool isUnlikely() const override { return true; }
     bool cleanOut() const override { return true; }
+    bool isSystemFunc() const override { return true; }
 };
 class AstTaggedExpr final : public AstNodeExpr {
     // Tagged union expression: "tagged MemberName [expr]"
@@ -2369,6 +2388,8 @@ public:
     }
     ASTGEN_MEMBERS_AstTestPlusArgs;
     string verilogKwd() const override { return "$test$plusargs"; }
+    string emitVerilog() override { return verilogKwd(); }
+    string emitC() override { return "VL_VALUEPLUSARGS_%nq(%lw, %P, nullptr)"; }
     bool isGateOptimizable() const override { return false; }
     bool isPredictOptimizable() const override { return false; }
     // but isPure() true
@@ -2389,6 +2410,8 @@ public:
         this->dtypep(dtypep);
     }
     ASTGEN_MEMBERS_AstThisRef;
+    string emitC() override { return "this"; }
+    string emitVerilog() override { return "this"; }
     bool sameNode(const AstNode* /*samep*/) const override { return true; }
     bool cleanOut() const override { return true; }
     AstNodeDType* getChildDTypep() const override { return childDTypep(); }
@@ -2466,7 +2489,12 @@ public:
     }
     ASTGEN_MEMBERS_AstValuePlusArgs;
     string verilogKwd() const override { return "$value$plusargs"; }
+    string emitVerilog() override { return "%f$value$plusargs(%l, %k%r)"; }
+    bool isGateOptimizable() const override { return false; }
+    bool isPredictOptimizable() const override { return false; }
     bool isPure() override { return !outp(); }
+    bool isSystemFunc() const override { return true; }
+    bool cleanOut() const override { return true; }
 };
 class AstWith final : public AstNodeExpr {
     // Used as argument to method, then to AstCMethodHard
@@ -4216,6 +4244,7 @@ public:
     AstStreamL(FileLine* fl, AstNodeExpr* lhsp, AstNodeExpr* rhsp)
         : ASTGEN_SUPER_StreamL(fl, lhsp, rhsp) {}
     ASTGEN_MEMBERS_AstStreamL;
+    string emitVerilog() override { return "%f{ << %r %k{%l} }"; }
     void numberOperate(V3Number& out, const V3Number& lhs, const V3Number& rhs) override {
         out.opStreamL(lhs, rhs);
     }
@@ -4233,6 +4262,7 @@ public:
     AstStreamR(FileLine* fl, AstNodeExpr* lhsp, AstNodeExpr* rhsp)
         : ASTGEN_SUPER_StreamR(fl, lhsp, rhsp) {}
     ASTGEN_MEMBERS_AstStreamR;
+    string emitVerilog() override { return "%f{ >> %r %k{%l} }"; }
     void numberOperate(V3Number& out, const V3Number& lhs, const V3Number& rhs) override {
         out.opAssign(lhs);
     }
@@ -4242,6 +4272,7 @@ public:
     bool cleanRhs() const override { return false; }
     bool sizeMattersLhs() const override { return false; }
     bool sizeMattersRhs() const override { return false; }
+    int instrCount() const override { return widthInstrs() * 2; }
 };
 class AstAtan2D final : public AstNodeSystemBiopD {
 public:
@@ -4345,6 +4376,7 @@ public:
     bool isImplicit() const { return m_isImplicit; }
     void isImplicit(bool flag) { m_isImplicit = flag; }
     bool isScoped() const { return m_isScoped; }
+    int instrCount() const override { return widthInstrs(); }
     bool isPure() override { return false; }
 };
 class AstTaskRef final : public AstNodeFTaskRef {
