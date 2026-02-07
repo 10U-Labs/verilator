@@ -351,22 +351,6 @@ class TaggedVisitor final : public VNVisitor {
             return;
         }
 
-        // Handle TaggedExpr (e.g., "tagged Value .y" in struct pattern with tagged union member)
-        if (AstTaggedExpr* const tagExprp = VN_CAST(nodep, TaggedExpr)) {
-            AstUnionDType* const unionDtp = VN_CAST(baseDtp->skipRefp(), UnionDType);
-            if (!unionDtp || !unionDtp->isTagged()) return;
-            AstMemberDType* const memberp = findMember(unionDtp, tagExprp->name());
-            if (!memberp) return;
-            if (tagChecks) tagChecks->push_back({basePath, memberp->tagIndex()});
-            const string memberPath
-                = basePath.empty() ? tagExprp->name() : basePath + "." + tagExprp->name();
-            if (tagExprp->exprp()) {
-                collectNestedPatternVars(tagExprp->exprp(), memberp->subDTypep(), memberPath, out,
-                                         tagChecks);
-            }
-            return;
-        }
-
         AstPattern* const patp = VN_CAST(nodep, Pattern);
         if (!patp) return;
         // Check if it's an array or struct type
@@ -882,29 +866,16 @@ class TaggedVisitor final : public VNVisitor {
     // members. Args: 5, Depth: 3, Statements: ~20
     void expandPatternToAssigns(FileLine* fl, AstNodeExpr* targetp, AstPattern* patp,
                                 AstNodeUOrStructDType* structDtp, AstNode*& assignsp) {
-        std::map<string, AstMemberDType*> memberMap;
         std::vector<AstMemberDType*> memberList;
         for (AstMemberDType* m = structDtp->membersp(); m; m = VN_AS(m->nextp(), MemberDType)) {
-            memberMap[m->name()] = m;
             memberList.push_back(m);
         }
         size_t idx = 0;
         for (AstPatMember* itemp = VN_CAST(patp->itemsp(), PatMember); itemp;
              itemp = VN_CAST(itemp->nextp(), PatMember), ++idx) {
-            string memberName;
-            AstMemberDType* memDtp = nullptr;
-            if (AstText* const keyp = VN_CAST(itemp->keyp(), Text)) {
-                const auto it = memberMap.find(keyp->text());
-                if (it != memberMap.end()) {
-                    memberName = it->first;
-                    memDtp = it->second;
-                }
-            }
-            if (!memDtp && idx < memberList.size()) {
-                memberName = memberList[idx]->name();
-                memDtp = memberList[idx];
-            }
-            if (!memDtp) continue;
+            if (idx >= memberList.size()) continue;
+            const string& memberName = memberList[idx]->name();
+            AstMemberDType* const memDtp = memberList[idx];
             AstStructSel* const fieldSelp
                 = new AstStructSel{fl, targetp->cloneTree(false), memberName};
             fieldSelp->dtypep(memDtp->subDTypep());
@@ -944,23 +915,17 @@ class TaggedVisitor final : public VNVisitor {
             if (!exprDtp) exprDtp = dtypep;
             AstUnionDType* const nestedUnionp
                 = exprDtp ? VN_CAST(exprDtp->skipRefp(), UnionDType) : nullptr;
-            if (nestedUnionp && !nestedUnionp->packed()) {
-                m_processedTaggedExprs.insert(nestedTaggedp);
+            UASSERT_OBJ(nestedUnionp, valuep, "TaggedExpr must have union dtype");
+            m_processedTaggedExprs.insert(nestedTaggedp);
+            if (!nestedUnionp->packed()) {
                 expandTaggedToAssigns(fl, targetp, nestedTaggedp, nestedUnionp, assignsp);
-                // targetp was used as template for cloning but not consumed
                 VL_DO_DANGLING(targetp->deleteTree(), targetp);
-                return;
-            }
-            // For packed unions, transform the expression and assign the result
-            if (nestedUnionp && nestedUnionp->packed()) {
-                m_processedTaggedExprs.insert(nestedTaggedp);
+            } else {
                 AstNodeExpr* const transformedp = transformTaggedExpr(nestedTaggedp, nestedUnionp);
                 AstAssign* const assignp = new AstAssign{fl, targetp, transformedp};
                 addToNodeList(assignsp, assignp);
-                return;
             }
-            // Unknown union type - this shouldn't happen, assert
-            UASSERT_OBJ(nestedUnionp, valuep, "TaggedExpr must have union dtype");
+            return;
         }
 
         // Check for AstPattern (positional struct pattern not yet converted)
