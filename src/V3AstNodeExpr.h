@@ -202,6 +202,7 @@ public:
         const AstNodeCCall* const asamep = VN_DBG_AS(samep, NodeCCall);
         return (funcp() == asamep->funcp() && argTypes() == asamep->argTypes());
     }
+    bool isGateOptimizable() const override { return false; }
     bool isPredictOptimizable() const override { return false; }
     bool isPure() override;
     bool isOutputter() override { return !isPure(); }
@@ -210,8 +211,7 @@ public:
     string argTypes() const { return m_argTypes; }
     void argTypes(const string& str) { m_argTypes = str; }
 
-    bool isGateOptimizable() const override { return false; }
-    bool cleanOut() const override { return true; }
+    bool cleanOut() const final override { return true; }
     bool superReference() const { return m_superReference; }
     void superReference(bool flag) { m_superReference = flag; }
 };
@@ -4373,10 +4373,10 @@ public:
     ASTGEN_MEMBERS_AstNew;
     void dump(std::ostream& str = std::cout) const override;
     void dumpJson(std::ostream& str = std::cout) const override;
+    int instrCount() const override { return widthInstrs(); }
     bool isImplicit() const { return m_isImplicit; }
     void isImplicit(bool flag) { m_isImplicit = flag; }
     bool isScoped() const { return m_isScoped; }
-    int instrCount() const override { return widthInstrs(); }
     bool isPure() override { return false; }
 };
 class AstTaskRef final : public AstNodeFTaskRef {

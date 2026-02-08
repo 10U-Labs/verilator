@@ -317,7 +317,7 @@ class EmitCHeader final : public EmitCConstInit {
         // For unpacked tagged unions, emit as struct (not union)
         // because they have a __Vtag member alongside the data members
         AstUnionDType* const unionp = VN_CAST(sdtypep, UnionDType);
-        const bool isTaggedStruct = unionp && unionp->isTagged() && !unionp->packed();
+        const bool isTaggedStruct = unionp && unionp->isTagged();
 
         if (isTaggedStruct) {
             putns(sdtypep, "struct");
@@ -546,8 +546,6 @@ class EmitCHeader final : public EmitCConstInit {
         // SystemVerilog structs/unions must have members; tagged unions always have __Vtag
         UASSERT_OBJ(lastItemp, sdtypep, "Struct/union has no members");
         if (lastItemp->width() == sdtypep->width()) witemp = lastItemp;
-        // Use & instead of && to avoid short-circuit branch
-        if ((lastItemp->width() > widestWidth) & (!witemp)) witemp = lastItemp;
         for (itemp = lastItemp; itemp; itemp = VN_CAST(itemp->backp(), MemberDType)) {
             putns(itemp, itemp->dtypep()->cType(itemp->nameProtect(), false, false, true));
             puts(";\n");
