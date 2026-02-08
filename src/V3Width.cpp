@@ -3241,7 +3241,10 @@ class WidthVisitor final : public VNVisitor {
     static void markNestedStructPacked(AstMemberDType* itemp) {
         AstNodeDType* const dtp = itemp->subDTypep()->skipRefp();
         if (AstNodeUOrStructDType* const structp = VN_CAST(dtp, NodeUOrStructDType)) {
-            if (!structp->packed()) structp->packed(true);
+            if (!structp->packed()) {
+                structp->packed(true);
+                structp->didWidth(false);  // Force re-processing with packed layout
+            }
         }
     }
     // Helper: Check if dtype is a dynamic type requiring unpacked storage

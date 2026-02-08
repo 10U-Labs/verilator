@@ -351,6 +351,22 @@ class TaggedVisitor final : public VNVisitor {
             return;
         }
 
+        // Handle TaggedExpr (e.g., "tagged Data '{a: .av, b: .bv}" inside struct pattern)
+        // Grammar: assignment_pattern is a primary/expr, so "tagged Member '{...}" → AstTaggedExpr
+        if (AstTaggedExpr* const tagExprp = VN_CAST(nodep, TaggedExpr)) {
+            AstUnionDType* const unionDtp = VN_CAST(baseDtp->skipRefp(), UnionDType);
+            if (!unionDtp) return;
+            AstMemberDType* const memberp = findMember(unionDtp, tagExprp->name());
+            if (tagChecks) tagChecks->push_back({basePath, memberp->tagIndex()});
+            const string memberPath
+                = basePath.empty() ? tagExprp->name() : basePath + "." + tagExprp->name();
+            if (tagExprp->exprp()) {
+                collectNestedPatternVars(tagExprp->exprp(), memberp->subDTypep(), memberPath, out,
+                                         tagChecks);
+            }
+            return;
+        }
+
         AstPattern* const patp = VN_CAST(nodep, Pattern);
         if (!patp) return;
         // Check if it's an array or struct type
