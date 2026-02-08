@@ -147,7 +147,7 @@ class TaggedVisitor final : public VNVisitor {
         if (!nodep) return nullptr;
         const string suffix = "__DOT__" + varName;
         AstVar* foundVarp = nullptr;
-        nodep->foreach([&](AstVarRef* varRefp) {
+        nodep->foreachAndNext([&](AstVarRef* varRefp) {
             if (!foundVarp && hasSuffix(varRefp->varp()->name(), suffix)) {
                 foundVarp = varRefp->varp();
             }
@@ -158,7 +158,7 @@ class TaggedVisitor final : public VNVisitor {
     // Replace all references to pattern variable with the new local variable
     // Uses O(1) pointer comparison when origVarp is provided
     void replacePatternVarRefs(AstNode* nodep, AstVar* origVarp, AstVar* newVarp) {
-        nodep->foreach([&](AstVarRef* varRefp) {
+        nodep->foreachAndNext([&](AstVarRef* varRefp) {
             if (varRefp->varp() == origVarp) {
                 varRefp->varp(newVarp);
                 varRefp->name(newVarp->name());
@@ -352,7 +352,8 @@ class TaggedVisitor final : public VNVisitor {
         }
 
         // Handle TaggedExpr (e.g., "tagged Data '{a: .av, b: .bv}" inside struct pattern)
-        // Grammar: assignment_pattern is a primary/expr, so "tagged Member '{...}" → AstTaggedExpr
+        // Grammar: assignment_pattern is a primary/expr, so "tagged Member '{...}" ->
+        // AstTaggedExpr
         if (AstTaggedExpr* const tagExprp = VN_CAST(nodep, TaggedExpr)) {
             AstUnionDType* const unionDtp = VN_CAST(baseDtp->skipRefp(), UnionDType);
             if (!unionDtp) return;
